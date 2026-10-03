@@ -1,0 +1,1276 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>IPL Auction Arena</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@500;600;700&family=Big+Shoulders+Display:wght@700;800;900&display=swap" rel="stylesheet">
+<style>
+/* ---- Broadcast scoreboard layout: top rail, teams | lot stage | wishlist/sets, night-stadium palette ---- */
+:root {
+  --night: #070b18; --deep: #0c1330; --panel: #111a3b; --panel2: #172250; --line: #26335f;
+  --text: #eef2ff; --mute: #98a4cf; --gold: #f4b73f; --gold-ink: #251800; --live: #ff5a5f; --ok: #34d399; --warn: #fbbf24;
+  --tc: #3b4a8f;
+  --f-disp: 'Big Shoulders Display', 'Oswald', 'Arial Narrow', sans-serif;
+  --f-body: 'Barlow', 'Segoe UI', system-ui, sans-serif;
+  --f-num: 'Barlow Condensed', 'Arial Narrow', sans-serif;
+  color-scheme: dark;
+}
+html, body { height: auto; }
+body {
+  margin: 0; color: var(--text); font-family: var(--f-body); font-size: 15px; line-height: 1.4;
+  background: radial-gradient(900px 420px at 50% -80px, #1d2d70 0%, transparent 70%), radial-gradient(500px 300px at 100% 0, #3a1f5f55 0%, transparent 70%), var(--night);
+  background-attachment: fixed;
+}
+* { box-sizing: border-box; }
+button, input, select { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+h1, h2, h3 { font-family: var(--f-disp); font-weight: 800; letter-spacing: .02em; margin: 0; text-wrap: balance; text-transform: uppercase; }
+h2 { font-size: 24px; } h3 { font-size: 18px; }
+small, .mute { color: var(--mute); }
+.shell { max-width: 1500px; margin: 0 auto; padding-inline: 16px; padding-block: 12px 40px; }
+
+.top { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding-block: 6px 14px; }
+.brand { display: flex; align-items: center; gap: 10px; font-family: var(--f-disp); font-weight: 900; font-size: 26px; letter-spacing: .04em; text-transform: uppercase; }
+.brand i { width: 14px; height: 30px; background: var(--gold); border-radius: 3px; box-shadow: 18px 0 0 -2px var(--gold), 36px 0 0 -2px var(--gold); margin-right: 34px; }
+.crumbs { display: flex; gap: 6px; flex-wrap: wrap; font-family: var(--f-num); font-weight: 600; letter-spacing: .08em; text-transform: uppercase; font-size: 13px; }
+.crumbs span { padding: 4px 10px; border-radius: 999px; border: 1px solid var(--line); color: var(--mute); }
+.crumbs span.on { background: var(--gold); border-color: var(--gold); color: var(--gold-ink); }
+.crumbs span.past { color: var(--text); }
+
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 16px; min-width: 0; }
+.btn { border: 1px solid var(--line); background: var(--panel2); border-radius: 10px; padding: 9px 14px; font-weight: 600; transition: transform .1s, background .15s; }
+.btn:hover:not(:disabled) { background: #1f2d66; }
+.btn:active:not(:disabled) { transform: translateY(1px); }
+.btn:disabled { opacity: .45; cursor: not-allowed; }
+.btn.gold { background: var(--gold); border-color: var(--gold); color: var(--gold-ink); font-family: var(--f-disp); font-size: 20px; letter-spacing: .05em; text-transform: uppercase; font-weight: 800; padding: 10px 22px; }
+.btn.gold:hover:not(:disabled) { background: #ffc85a; }
+.btn.mini { padding: 4px 10px; font-size: 13px; border-radius: 8px; }
+.btn.on { background: var(--ok); border-color: var(--ok); color: #03281b; }
+.btn.danger { border-color: #6b2a35; color: #ffb3b8; }
+.row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.grow { flex: 1; min-width: 0; }
+.tag { display: inline-block; font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 6px; background: #1d2859; color: #cfd7ff; margin: 0 4px 4px 0; }
+.tag.os { background: #3b2a66; color: #e3d4ff; } .tag.cap { background: #14423a; color: #9bf0d0; } .tag.unc { background: #4a3a14; color: #ffe19b; } .tag.hot { background: var(--gold); color: var(--gold-ink); }
+.crest { display: block; flex: none; }
+input[type=text], input[type=search], input[type=number], select { background: #0a1128; border: 1px solid var(--line); border-radius: 9px; padding: 8px 10px; min-width: 0; }
+input.num { width: 84px; text-align: right; font-family: var(--f-num); font-weight: 700; font-size: 16px; padding: 5px 8px; }
+
+/* home */
+.hero { padding-block: 10px 6px; max-width: 760px; }
+.hero h1 { font-size: clamp(40px, 7vw, 76px); line-height: .95; }
+.hero h1 em { font-style: normal; color: var(--gold); }
+.hero p { color: var(--mute); font-size: 17px; margin: 10px 0 0; }
+.rulestrip { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+.rulestrip span { font-family: var(--f-num); font-weight: 700; letter-spacing: .06em; text-transform: uppercase; border: 1px solid var(--line); border-radius: 8px; padding: 4px 10px; font-size: 14px; }
+.sec { margin-top: 26px; display: grid; gap: 12px; }
+.modes { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; }
+.mode { text-align: left; background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 16px; display: grid; gap: 6px; align-content: start; }
+.mode[aria-pressed=true] { border-color: var(--gold); box-shadow: 0 0 0 2px var(--gold) inset, 0 8px 30px #f4b73f22; background: var(--panel2); }
+.mode b { font-family: var(--f-disp); font-size: 24px; text-transform: uppercase; letter-spacing: .03em; }
+.mode .k { font-family: var(--f-num); color: var(--gold); font-weight: 700; letter-spacing: .08em; text-transform: uppercase; font-size: 13px; }
+.mode p { margin: 0; color: var(--mute); }
+.teamgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+.teamtile { display: grid; justify-items: center; gap: 6px; padding: 14px 8px 12px; border-radius: 14px; border: 1px solid var(--line); background: var(--panel); text-align: center; }
+.teamtile[aria-pressed=true] { border-color: var(--tc); box-shadow: 0 0 0 2px var(--tc) inset, 0 10px 30px color-mix(in srgb, var(--tc) 35%, transparent); background: var(--panel2); }
+.teamtile b { font-size: 13px; line-height: 1.15; }
+.cta { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-top: 8px; }
+
+/* lists */
+.two { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 14px; align-items: start; }
+.sticky { position: sticky; top: env(safe-area-inset-top, 0px); }
+.plist { display: grid; gap: 4px; max-height: 68vh; overflow-y: auto; padding-right: 4px; }
+.prow { display: flex; align-items: center; gap: 10px; padding: 6px 8px; border-radius: 10px; background: #0d1532; border: 1px solid transparent; }
+.prow.sel { border-color: var(--ok); background: #0e2a2e; }
+.prow.cur { border-color: var(--gold); background: #2a2210; }
+.prow .pi { flex: 1; min-width: 0; display: grid; }
+.prow .pi b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.prow .pi small { font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.prow .pr { display: flex; align-items: center; gap: 6px; flex: none; font-family: var(--f-num); font-weight: 700; font-size: 15px; }
+.av { width: 34px; height: 34px; flex: none; border-radius: 50%; display: grid; place-items: center; background: linear-gradient(145deg, #2b3a82, #141d46); font-family: var(--f-disp); font-weight: 800; font-size: 14px; letter-spacing: .04em; border: 1px solid var(--line); }
+.filters { display: flex; gap: 8px; flex-wrap: wrap; margin-block: 10px; }
+.filters input[type=search] { flex: 1; min-width: 160px; }
+details.set { border: 1px solid var(--line); border-radius: 12px; margin-bottom: 8px; background: var(--deep); }
+details.set > summary { padding: 10px 12px; cursor: pointer; display: flex; gap: 10px; align-items: center; font-family: var(--f-disp); font-weight: 800; letter-spacing: .03em; text-transform: uppercase; font-size: 17px; list-style-position: inside; }
+details.set > summary small { margin-left: auto; font-family: var(--f-num); font-size: 14px; letter-spacing: .04em; }
+details.set > div { display: grid; gap: 4px; padding: 0 8px 8px; }
+.stat { display: flex; justify-content: space-between; gap: 8px; font-family: var(--f-num); font-weight: 600; font-size: 16px; padding: 3px 0; border-bottom: 1px dashed var(--line); }
+.msg { padding: 8px 10px; border-radius: 9px; background: #2a1d10; border: 1px solid #5c4318; color: #ffd9a0; font-size: 14px; }
+.msg.ok { background: #0f2a22; border-color: #1e5a46; color: #a7f0cf; }
+.empty { padding: 18px 8px; text-align: center; color: var(--mute); }
+
+/* reveal */
+.reveal { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+.rcard { background: var(--panel); border: 1px solid var(--line); border-top: 4px solid var(--tc); border-radius: 12px; padding: 12px; display: grid; gap: 6px; align-content: start; }
+.rcard.me { box-shadow: 0 0 0 2px var(--gold) inset; }
+.rcard ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 2px; font-size: 14px; }
+.rcard li { display: flex; justify-content: space-between; gap: 8px; }
+
+/* auction */
+.hud { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; padding: 10px 12px; border-radius: 14px; border: 1px solid var(--line); background: var(--panel); }
+.hud .live { display: inline-flex; align-items: center; gap: 6px; font-family: var(--f-num); font-weight: 700; letter-spacing: .12em; color: var(--live); }
+.hud .live::before { content: ''; width: 9px; height: 9px; border-radius: 50%; background: var(--live); animation: pulse 1.4s infinite; }
+.hud.paused .live { color: var(--warn); } .hud.paused .live::before { background: var(--warn); animation: none; }
+.hud select { padding: 6px 8px; max-width: 190px; }
+.hud label { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; }
+.arena { display: grid; grid-template-columns: 270px minmax(0, 1fr) 350px; gap: 12px; align-items: start; }
+.stage { position: relative; display: grid; gap: 12px; }
+.lotbar { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; font-family: var(--f-num); font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--mute); }
+.lotbar b { color: var(--gold); }
+.lot { display: grid; grid-template-columns: 170px minmax(0, 1fr); gap: 16px; align-items: center; }
+.photo { border-radius: 14px; background: radial-gradient(circle at 50% 30%, color-mix(in srgb, var(--tc) 55%, #101a44), #0a1030 75%); border: 1px solid var(--line); overflow: hidden; aspect-ratio: 170 / 200; position: relative; }
+.photo svg, .photo img { width: 100%; height: 100%; display: block; object-fit: cover; }
+.photo .ini { position: absolute; left: 8px; bottom: 6px; font-family: var(--f-disp); font-weight: 900; font-size: 22px; letter-spacing: .05em; opacity: .9; text-shadow: 0 2px 8px #000; }
+.meta h2 { font-size: clamp(30px, 4.6vw, 52px); line-height: .95; overflow-wrap: anywhere; }
+.facts { margin-top: 6px; color: var(--mute); }
+.facts b { color: var(--text); font-family: var(--f-num); font-size: 18px; }
+.bars { display: grid; gap: 5px; margin-top: 10px; max-width: 420px; }
+.bar { display: grid; grid-template-columns: 70px minmax(0, 1fr) 30px; gap: 8px; align-items: center; font-size: 13px; color: var(--mute); }
+.bar i { height: 7px; border-radius: 4px; background: #1a2554; overflow: hidden; display: block; }
+.bar i b { display: block; height: 100%; background: linear-gradient(90deg, var(--tc), var(--gold)); }
+.bar span:last-child { font-family: var(--f-num); font-weight: 700; color: var(--text); text-align: right; }
+.board { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 230px); gap: 12px; }
+.led { background: #03060f; border: 2px solid #2a3560; border-radius: 14px; padding: 12px 16px; box-shadow: inset 0 0 50px #f4b73f12; background-image: radial-gradient(#ffffff0a 1px, transparent 1px); background-size: 6px 6px; }
+.led small { font-family: var(--f-num); letter-spacing: .16em; text-transform: uppercase; font-weight: 700; }
+.price { font-family: var(--f-disp); font-weight: 900; font-size: clamp(54px, 9vw, 100px); line-height: 1; color: var(--gold); text-shadow: 0 0 28px #f4b73f66; font-variant-numeric: tabular-nums; }
+.price.bump { animation: bump .28s ease-out; }
+.sayline { min-height: 24px; font-family: var(--f-num); font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--live); }
+.leader { border-radius: 14px; border: 1px solid var(--line); border-left: 6px solid var(--tc); background: var(--panel2); padding: 12px; display: grid; gap: 6px; justify-items: start; align-content: center; }
+.leader b { font-family: var(--f-disp); font-size: 22px; text-transform: uppercase; line-height: 1; }
+.actions { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.actions .btn.gold { min-width: 230px; font-size: 26px; padding: 14px 24px; }
+.blog { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; min-height: 120px; }
+.blog li { display: flex; align-items: center; gap: 10px; padding: 5px 10px; border-radius: 9px; background: #0d1532; font-family: var(--f-num); font-weight: 600; font-size: 17px; }
+.blog li:first-child { background: #2a2210; border: 1px solid #6b5316; }
+.blog li span:last-child { margin-left: auto; color: var(--gold); font-weight: 700; }
+.stamp { position: absolute; inset: 0; display: grid; place-items: center; pointer-events: none; z-index: 5; }
+.stamp div { transform: rotate(-8deg); border: 8px solid var(--tc); color: var(--tc); background: #070b18e6; padding: 8px 28px; border-radius: 10px; font-family: var(--f-disp); font-weight: 900; font-size: clamp(44px, 9vw, 96px); letter-spacing: .06em; text-transform: uppercase; text-align: center; line-height: 1; animation: slam .35s cubic-bezier(.2, 1.6, .4, 1); }
+.stamp small { display: block; font-family: var(--f-num); font-size: clamp(16px, 2.4vw, 26px); letter-spacing: .08em; color: var(--text); margin-top: 6px; }
+.pausedmask { position: absolute; inset: 0; z-index: 4; background: #070b18cc; display: grid; place-items: center; border-radius: 14px; font-family: var(--f-disp); font-weight: 900; font-size: 56px; letter-spacing: .1em; color: var(--warn); }
+.col { display: grid; gap: 10px; min-width: 0; }
+.trow { display: grid; grid-template-columns: 36px minmax(0, 1fr) auto; gap: 8px; align-items: center; padding: 8px 10px; border-radius: 12px; background: var(--panel); border: 1px solid var(--line); border-left: 5px solid var(--tc); text-align: left; width: 100%; }
+.trow.me { box-shadow: 0 0 0 1px var(--gold) inset; }
+.trow.lead { background: color-mix(in srgb, var(--tc) 28%, var(--panel)); animation: glow 1s ease-out; }
+.trow b { font-family: var(--f-disp); font-size: 18px; letter-spacing: .03em; }
+.trow small { display: block; font-family: var(--f-num); font-weight: 600; font-size: 13.5px; letter-spacing: .02em; }
+.trow .pur { font-family: var(--f-num); font-weight: 800; font-size: 20px; text-align: right; color: var(--gold); }
+.trow .pur small { color: var(--mute); }
+.tabs { display: flex; gap: 4px; flex-wrap: wrap; }
+.tabs button { flex: 1; padding: 7px 6px; border-radius: 9px; border: 1px solid var(--line); background: transparent; font-family: var(--f-num); font-weight: 700; letter-spacing: .08em; text-transform: uppercase; font-size: 14px; }
+.tabs button[aria-selected=true] { background: var(--gold); border-color: var(--gold); color: var(--gold-ink); }
+.sidebody { max-height: 74vh; overflow-y: auto; padding-right: 4px; margin-top: 10px; }
+.only-m { display: none !important; }
+.wrow { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 8px; align-items: center; padding: 6px 8px; border-radius: 10px; background: #0d1532; margin-bottom: 4px; }
+.wrow.cur { border: 1px solid var(--gold); background: #2a2210; }
+.wrow .pi { display: grid; min-width: 0; } .wrow .pi b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .wrow .pi small { font-size: 12px; }
+.modal { position: fixed; inset: 0; z-index: 50; background: #03050dd9; display: grid; place-items: center; padding: 16px; overflow-y: auto; }
+.modal > div { width: min(560px, 100%); max-height: 90vh; overflow-y: auto; background: var(--panel); border: 1px solid var(--line); border-top: 5px solid var(--gold); border-radius: 14px; padding: 18px; display: grid; gap: 12px; }
+.modal.wide > div { width: min(760px, 100%); }
+.toast { position: fixed; left: 50%; bottom: calc(18px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); z-index: 60; background: var(--gold); color: var(--gold-ink); font-weight: 700; padding: 10px 18px; border-radius: 999px; max-width: calc(100vw - 32px); box-shadow: 0 8px 30px #0008; }
+.stepper { display: flex; gap: 10px; align-items: center; justify-content: center; }
+.stepper .big { font-family: var(--f-disp); font-weight: 900; font-size: 48px; color: var(--gold); min-width: 160px; text-align: center; }
+table.tbl { width: 100%; border-collapse: collapse; font-size: 14px; }
+table.tbl th, table.tbl td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+table.tbl th { font-family: var(--f-num); letter-spacing: .08em; text-transform: uppercase; color: var(--mute); font-size: 12.5px; }
+.scroll-x { overflow-x: auto; }
+.note { font-size: 13px; color: var(--mute); margin-top: 18px; max-width: 900px; }
+
+@keyframes pulse { 50% { opacity: .35; } }
+@keyframes bump { 0% { transform: scale(1.08); } 100% { transform: scale(1); } }
+@keyframes slam { 0% { transform: rotate(-8deg) scale(2.2); opacity: 0; } 100% { transform: rotate(-8deg) scale(1); opacity: 1; } }
+@keyframes glow { 0% { box-shadow: 0 0 0 3px var(--tc); } 100% { box-shadow: 0 0 0 0 transparent; } }
+@media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+
+@media (max-width: 1180px) {
+  .arena { grid-template-columns: minmax(0, 1fr) 330px; }
+  .teams-col { display: none; }
+  .only-m { display: inline-block !important; }
+}
+@media (max-width: 860px) {
+  .arena, .two { grid-template-columns: minmax(0, 1fr); }
+  .sticky { position: static; }
+  .board { grid-template-columns: minmax(0, 1fr); }
+  .lot { grid-template-columns: 110px minmax(0, 1fr); gap: 12px; }
+  .actions .btn.gold { min-width: 0; flex: 1; }
+  .plist { max-height: 56vh; }
+}
+
+[hidden] { display: none !important; }
+.cw { display: inline-block; position: relative; flex: none; }
+.cw svg, .cw img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
+.photo img { position: absolute; inset: 0; }
+.rs { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.rs span { background: #0d1532; border: 1px solid var(--line); border-radius: 8px; padding: 3px 9px; font-family: var(--f-num); font-weight: 600; font-size: 14px; color: var(--mute); }
+.rs b { color: var(--gold); margin-left: 4px; }
+
+img{max-width:100%}
+</style></head><body>
+<div class="shell" id="app">
+  <header class="top"><div class="brand"><i></i>IPL Auction Arena</div><nav class="crumbs" id="crumbs" aria-label="Progress"></nav></header>
+  <main id="screen"></main>
+  <div class="modal" id="modal" hidden></div>
+  <div class="toast" id="toast" role="status" hidden></div>
+</div>
+<script src="stats.js"></script>
+<script>
+/* ===== DATA ===== */
+/* Team crests are drawn in code (official logos can't be loaded inside an artifact).
+   To use real images on your own hosting, fill ASSETS.logo[teamId] / ASSETS.photo[playerId] with URLs or data: URIs. */
+const ASSETS = { logo: {}, photo: {} };
+
+const TEAMS = [
+  { id: 'CSK',  name: 'Chennai Super Kings',          c1: '#f2c500', ring: '#0b3a8c', ink: '#0b3a8c' },
+  { id: 'MI',   name: 'Mumbai Indians',              c1: '#0b5ea8', ring: '#d1ab3e', ink: '#ffffff' },
+  { id: 'RCB',  name: 'Royal Challengers Bengaluru', c1: '#b3121f', ring: '#e8c25a', ink: '#f6dc8a' },
+  { id: 'KKR',  name: 'Kolkata Knight Riders',       c1: '#3b2063', ring: '#f0c24b', ink: '#f0c24b' },
+  { id: 'DC',   name: 'Delhi Capitals',              c1: '#17479e', ring: '#ef1b23', ink: '#ffffff' },
+  { id: 'GT',   name: 'Gujarat Titans',              c1: '#1c2b4a', ring: '#d9c08a', ink: '#d9c08a' },
+  { id: 'LSG',  name: 'Lucknow Super Giants',        c1: '#0a8fd1', ring: '#f58220', ink: '#ffffff' },
+  { id: 'PBKS', name: 'Punjab Kings',                c1: '#d3202a', ring: '#dcdddf', ink: '#ffffff' },
+  { id: 'RR',   name: 'Rajasthan Royals',            c1: '#e91e8c', ring: '#1f3fa0', ink: '#ffffff' },
+  { id: 'SRH',  name: 'Sunrisers Hyderabad',         c1: '#f26a21', ring: '#151515', ink: '#151515' },
+];
+
+/* name | role | nationality | capped(1/0) | base price (lakh) | 2025 team | 2025 price (crore) | rating (0-100, my estimate) | 2024 team (RTM / retention roster) | R = actually retained for 2025 */
+const RAW = `
+Ruturaj Gaikwad|BA|IN|1|200|CSK|18|88|CSK|R
+Matheesha Pathirana|FA|SL|1|150|CSK|13|84|CSK|R
+Shivam Dube|AR|IN|1|150|CSK|12|82|CSK|R
+Ravindra Jadeja|AR|IN|1|200|CSK|18|88|CSK|R
+MS Dhoni|WK|IN|0|50|CSK|4|78|CSK|R
+Jasprit Bumrah|FA|IN|1|200|MI|18|95|MI|R
+Suryakumar Yadav|BA|IN|1|200|MI|16.35|90|MI|R
+Hardik Pandya|AR|IN|1|200|MI|16.35|88|MI|R
+Rohit Sharma|BA|IN|1|200|MI|16.3|86|MI|R
+Tilak Varma|BA|IN|1|100|MI|8|83|MI|R
+Virat Kohli|BA|IN|1|200|RCB|21|91|RCB|R
+Rajat Patidar|BA|IN|1|100|RCB|11|82|RCB|R
+Yash Dayal|FA|IN|0|50|RCB|5|78|RCB|R
+Rinku Singh|BA|IN|1|100|KKR|13|82|KKR|R
+Varun Chakaravarthy|SP|IN|1|100|KKR|12|86|KKR|R
+Sunil Narine|AR|WI|1|200|KKR|12|88|KKR|R
+Andre Russell|AR|WI|1|200|KKR|12|85|KKR|R
+Harshit Rana|FA|IN|0|50|KKR|4|80|KKR|R
+Ramandeep Singh|AR|IN|0|30|KKR|4|72|KKR|R
+Axar Patel|AR|IN|1|200|DC|16.5|85|DC|R
+Kuldeep Yadav|SP|IN|1|200|DC|13.25|86|DC|R
+Tristan Stubbs|BA|SA|1|100|DC|10|80|DC|R
+Abishek Porel|WK|IN|0|30|DC|4|75|DC|R
+Rashid Khan|SP|AFG|1|200|GT|18|92|GT|R
+Shubman Gill|BA|IN|1|200|GT|16.5|87|GT|R
+Sai Sudharsan|BA|IN|1|100|GT|8.5|82|GT|R
+Rahul Tewatia|AR|IN|0|50|GT|4|72|GT|R
+Shahrukh Khan|BA|IN|0|50|GT|4|70|GT|R
+Nicholas Pooran|WK|WI|1|200|LSG|21|90|LSG|R
+Ravi Bishnoi|SP|IN|1|100|LSG|11|82|LSG|R
+Mayank Yadav|FA|IN|1|100|LSG|11|80|LSG|R
+Mohsin Khan|FA|IN|0|30|LSG|4|72|LSG|R
+Ayush Badoni|BA|IN|0|30|LSG|4|72|LSG|R
+Shashank Singh|BA|IN|0|30|PBKS|5.5|78|PBKS|R
+Prabhsimran Singh|WK|IN|0|30|PBKS|4|76|PBKS|R
+Sanju Samson|WK|IN|1|200|RR|18|87|RR|R
+Yashasvi Jaiswal|BA|IN|1|200|RR|18|90|RR|R
+Riyan Parag|BA|IN|1|100|RR|14|82|RR|R
+Dhruv Jurel|WK|IN|1|100|RR|14|78|RR|R
+Shimron Hetmyer|BA|WI|1|150|RR|11|80|RR|R
+Sandeep Sharma|FA|IN|0|50|RR|4|74|RR|R
+Heinrich Klaasen|WK|SA|1|200|SRH|23|90|SRH|R
+Pat Cummins|FA|AUS|1|200|SRH|18|88|SRH|R
+Abhishek Sharma|BA|IN|1|100|SRH|14|85|SRH|R
+Travis Head|BA|AUS|1|200|SRH|14|90|SRH|R
+Nitish Kumar Reddy|AR|IN|1|100|SRH|6|78|SRH|R
+Jos Buttler|WK|ENG|1|200|GT|15.75|90|RR|
+Shreyas Iyer|BA|IN|1|200|PBKS|26.75|88|KKR|
+Rishabh Pant|WK|IN|1|200|LSG|27|89|DC|
+Kagiso Rabada|FA|SA|1|200|GT|10.75|90|PBKS|
+Arshdeep Singh|FA|IN|1|200|PBKS|18|88|PBKS|
+Mitchell Starc|FA|AUS|1|200|DC|11.75|88|KKR|
+Yuzvendra Chahal|SP|IN|1|200|PBKS|18|86|RR|
+Liam Livingstone|AR|ENG|1|200|RCB|8.75|82|PBKS|
+David Miller|BA|SA|1|150|LSG|7.5|82|GT|
+KL Rahul|WK|IN|1|200|DC|14|86|LSG|
+Mohammed Shami|FA|IN|1|200|SRH|10|85|GT|
+Mohammed Siraj|FA|IN|1|200|GT|12.25|85|RCB|
+Harry Brook|BA|ENG|1|200|DC|6.25|85|-|
+Devon Conway|BA|NZ|1|200|CSK|6.25|82|CSK|
+Jake Fraser-McGurk|BA|AUS|1|200|DC|9|82|DC|
+Aiden Markram|BA|SA|1|200|LSG|2|80|SRH|
+Devdutt Padikkal|BA|IN|1|200|RCB|2|76|LSG|
+Rahul Tripathi|BA|IN|1|75|CSK|3.4|74|SRH|
+Ajinkya Rahane|BA|IN|1|150|KKR|1.5|74|CSK|
+Faf du Plessis|BA|SA|1|200|DC|2|80|RCB|
+Manish Pandey|BA|IN|1|75|KKR|0.75|68|KKR|
+Nitish Rana|BA|IN|1|150|RR|4.2|74|KKR|
+Angkrish Raghuvanshi|BA|IN|0|30|KKR|3|73|KKR|
+Priyansh Arya|BA|IN|0|30|PBKS|3.8|74|-|
+Karun Nair|BA|IN|1|50|DC|0.5|68|-|
+Ryan Rickelton|WK|SA|1|100|MI|1|78|-|
+Vaibhav Suryavanshi|BA|IN|0|30|RR|1.1|66|-|
+Sameer Rizvi|BA|IN|0|30|DC|0.95|70|CSK|
+Nehal Wadhera|BA|IN|0|30|PBKS|4.2|72|MI|
+Naman Dhir|AR|IN|0|30|MI|5.25|74|MI|
+Ashutosh Sharma|BA|IN|0|30|DC|3.8|72|PBKS|
+Abdul Samad|BA|IN|0|30|LSG|4.2|72|SRH|
+Rovman Powell|BA|WI|1|150|KKR|1.5|74|RR|
+Matthew Breetzke|BA|SA|1|75|LSG|0.75|72|-|
+Shubham Dubey|BA|IN|0|30|RR|0.8|62|-|
+Sherfane Rutherford|AR|WI|1|150|GT|2.6|76|MI|
+Jacob Bethell|AR|ENG|1|125|RCB|2.6|75|-|
+Glenn Phillips|BA|NZ|1|200|GT|2|78|SRH|
+Bevon Jacobs|BA|NZ|0|30|MI|0.3|62|-|
+Himmat Singh|BA|IN|0|30|LSG|0.3|58|-|
+Atharva Taide|BA|IN|0|30|SRH|0.3|60|-|
+Abhinav Manohar|BA|IN|0|30|SRH|3.2|66|GT|
+Aniket Verma|BA|IN|0|30|SRH|0.3|66|-|
+Sachin Baby|BA|IN|0|30|SRH|0.3|58|-|
+Shaik Rasheed|BA|IN|0|30|CSK|0.3|60|-|
+Andre Siddarth|BA|IN|0|30|CSK|0.3|56|-|
+Swastik Chikara|BA|IN|0|30|RCB|0.3|56|-|
+Harnoor Pannu|BA|IN|0|30|PBKS|0.3|56|-|
+Pyla Avinash|BA|IN|0|30|PBKS|0.3|58|-|
+Marcus Stoinis|AR|AUS|1|200|PBKS|11|82|LSG|
+Mitchell Marsh|AR|AUS|1|200|LSG|3.4|84|DC|
+Glenn Maxwell|AR|AUS|1|200|PBKS|4.2|82|RCB|
+Venkatesh Iyer|AR|IN|1|200|KKR|23.75|82|KKR|
+Rachin Ravindra|AR|NZ|1|150|CSK|4|80|CSK|
+Washington Sundar|AR|IN|1|200|GT|3.2|80|SRH|
+Ravichandran Ashwin|AR|IN|1|200|CSK|9.75|82|RR|
+Krunal Pandya|AR|IN|1|200|RCB|5.75|78|LSG|
+Sam Curran|AR|ENG|1|200|CSK|2.4|80|PBKS|
+Moeen Ali|AR|ENG|1|200|KKR|2|76|CSK|
+Marco Jansen|AR|SA|1|125|PBKS|7|80|SRH|
+Mitchell Santner|AR|NZ|1|200|MI|2|78|CSK|
+Will Jacks|AR|ENG|1|200|MI|5.25|82|RCB|
+Azmatullah Omarzai|AR|AFG|1|100|PBKS|2.4|76|-|
+Vijay Shankar|AR|IN|1|100|CSK|1.2|68|GT|
+Shahbaz Ahmed|AR|IN|1|50|LSG|2.4|68|RCB|
+Tim David|AR|AUS|1|200|RCB|3|80|MI|
+Wanindu Hasaranga|AR|SL|1|200|RR|5.25|80|SRH|
+Mahipal Lomror|AR|IN|0|50|GT|1.7|66|RCB|
+Aaron Hardie|AR|AUS|1|125|PBKS|1.25|72|-|
+Jamie Overton|AR|ENG|1|150|CSK|1.5|72|-|
+Corbin Bosch|AR|SA|1|75|MI|0.3|68|-|
+Deepak Hooda|AR|IN|1|75|CSK|1.7|68|LSG|
+Kamindu Mendis|AR|SL|1|75|SRH|0.75|72|-|
+Romario Shepherd|AR|WI|1|150|RCB|1.5|76|-|
+Jayant Yadav|AR|IN|1|75|GT|0.75|66|-|
+Arshad Khan|AR|IN|0|30|GT|1.3|66|-|
+Nishant Sindhu|AR|IN|0|30|GT|0.3|60|-|
+Anukul Roy|AR|IN|0|30|KKR|0.4|66|KKR|
+Vipraj Nigam|AR|IN|0|30|DC|0.5|64|-|
+Ajay Mandal|AR|IN|0|30|DC|0.3|60|-|
+Madhav Tiwari|AR|IN|0|30|DC|0.4|56|-|
+Tripurana Vijay|AR|IN|0|30|DC|0.3|56|-|
+Musheer Khan|AR|IN|0|30|PBKS|0.3|60|-|
+Suryansh Shedge|AR|IN|0|30|PBKS|0.3|62|-|
+Arshin Kulkarni|AR|IN|0|30|LSG|0.3|60|-|
+Yuvraj Chaudhary|AR|IN|0|30|LSG|0.3|56|-|
+Ramakrishna Ghosh|AR|IN|0|30|CSK|0.3|56|-|
+Manoj Bhandage|AR|IN|0|30|RCB|0.3|58|-|
+Mohit Rathee|AR|IN|0|30|RCB|0.3|56|-|
+Raj Angad Bawa|AR|IN|0|30|MI|0.3|62|-|
+Shardul Thakur|AR|IN|1|200|-|0|74|CSK|
+Sikandar Raza|AR|ZIM|1|125|-|0|72|PBKS|
+Jason Holder|AR|WI|1|150|-|0|72|-|
+Daryl Mitchell|AR|NZ|1|200|-|0|78|CSK|
+Trent Boult|FA|NZ|1|200|MI|12.5|88|RR|
+Josh Hazlewood|FA|AUS|1|200|RCB|12.5|86|-|
+Anrich Nortje|FA|SA|1|200|KKR|6.5|84|DC|
+Bhuvneshwar Kumar|FA|IN|1|200|RCB|10.75|82|SRH|
+Deepak Chahar|FA|IN|1|200|MI|9.25|80|CSK|
+T Natarajan|FA|IN|1|200|DC|10.75|82|SRH|
+Mukesh Kumar|FA|IN|1|200|DC|8|78|DC|
+Avesh Khan|FA|IN|1|200|LSG|9.75|78|RR|
+Prasidh Krishna|FA|IN|1|200|GT|9.5|82|RR|
+Khaleel Ahmed|FA|IN|1|200|CSK|4.8|78|DC|
+Akash Deep|FA|IN|1|100|LSG|8|76|RCB|
+Lockie Ferguson|FA|NZ|1|200|PBKS|2|78|RCB|
+Jofra Archer|FA|ENG|1|200|RR|12.5|84|-|
+Tushar Deshpande|FA|IN|1|100|RR|6.5|74|CSK|
+Fazalhaq Farooqi|FA|AFG|1|200|RR|2|76|SRH|
+Spencer Johnson|FA|AUS|1|200|KKR|2.8|76|GT|
+Nuwan Thushara|FA|SL|1|75|RCB|1.6|72|MI|
+Lungisani Ngidi|FA|SA|1|100|RCB|1|74|-|
+Vaibhav Arora|FA|IN|1|75|KKR|1.8|72|PBKS|
+Yash Thakur|FA|IN|1|75|PBKS|1.6|70|LSG|
+Vyshak Vijaykumar|FA|IN|1|30|PBKS|1.8|72|RCB|
+Kuldeep Sen|FA|IN|1|75|PBKS|0.8|68|RR|
+Xavier Bartlett|FA|AUS|1|200|PBKS|0.8|74|-|
+Reece Topley|FA|ENG|1|75|MI|0.75|70|RCB|
+Gerald Coetzee|FA|SA|1|200|GT|2.4|76|MI|
+Ishant Sharma|FA|IN|1|75|GT|0.75|70|DC|
+Mohit Sharma|FA|IN|1|75|DC|2.2|70|DC|
+Umran Malik|FA|IN|1|75|KKR|0.75|68|SRH|
+Dushmantha Chameera|FA|SL|1|75|DC|0.75|70|-|
+Nathan Ellis|FA|AUS|1|125|CSK|2|74|PBKS|
+Gurjapneet Singh|FA|IN|0|30|CSK|2.2|66|-|
+Anshul Kamboj|FA|IN|0|30|CSK|3.4|68|-|
+Rasikh Salam|FA|IN|0|30|RCB|6|70|DC|
+Akash Madhwal|FA|IN|0|30|RR|1.2|66|MI|
+Kwena Maphaka|FA|SA|1|75|RR|1.5|70|MI|
+Simarjeet Singh|FA|IN|0|30|SRH|1.5|66|CSK|
+Jaydev Unadkat|FA|IN|1|100|SRH|1|68|SRH|
+Brydon Carse|FA|ENG|1|100|SRH|1|70|-|
+Eshan Malinga|FA|SL|0|30|SRH|1.2|66|-|
+Shamar Joseph|FA|WI|1|75|LSG|0.75|72|-|
+Ashwani Kumar|FA|IN|0|30|MI|0.3|64|-|
+Arjun Tendulkar|FA|IN|0|30|MI|0.3|60|MI|
+Satyanarayana Raju|FA|IN|0|30|MI|0.3|56|-|
+Prince Yadav|FA|IN|0|30|LSG|0.3|62|-|
+Gurnoor Brar|FA|IN|0|30|GT|1.3|62|-|
+Mukesh Choudhary|FA|IN|0|30|CSK|0.3|62|CSK|
+Kamlesh Nagarkoti|FA|IN|0|30|CSK|0.3|58|-|
+Abhinandan Singh|FA|IN|0|30|RCB|0.3|58|-|
+Yudhvir Singh|FA|IN|0|30|RR|0.35|60|-|
+Ashok Sharma|FA|IN|0|30|RR|0.3|58|-|
+Darshan Nalkande|FA|IN|0|30|DC|0.3|58|-|
+Manvanth Kumar|FA|IN|0|30|DC|0.3|56|-|
+Harshal Patel|FA|IN|1|200|SRH|8|80|PBKS|
+Lizaad Williams|FA|SA|1|75|-|0|68|-|
+Mustafizur Rahman|FA|BAN|1|200|-|0|74|CSK|
+Umesh Yadav|FA|IN|1|200|-|0|68|GT|
+Alzarri Joseph|FA|WI|1|200|-|0|76|RCB|
+Navdeep Saini|FA|IN|1|75|-|0|66|-|
+Chetan Sakariya|FA|IN|1|75|-|0|64|KKR|
+Noor Ahmad|SP|AFG|1|200|CSK|10|82|GT|
+Maheesh Theekshana|SP|SL|1|200|RR|4.4|78|CSK|
+Rahul Chahar|SP|IN|1|100|SRH|3.2|72|PBKS|
+Adam Zampa|SP|AUS|1|200|SRH|2.4|78|RR|
+Allah Ghazanfar|SP|AFG|0|75|MI|4.8|74|-|
+Harpreet Brar|SP|IN|1|75|PBKS|1.5|72|PBKS|
+Mayank Markande|SP|IN|1|75|KKR|0.3|70|SRH|
+Karn Sharma|SP|IN|1|50|MI|0.5|66|MI|
+Suyash Sharma|SP|IN|0|30|RCB|2.6|70|KKR|
+Shreyas Gopal|SP|IN|1|30|CSK|0.3|66|-|
+Sai Kishore|SP|IN|1|75|GT|2|74|GT|
+Vignesh Puthur|SP|IN|0|30|MI|0.3|66|-|
+Digvesh Rathi|SP|IN|0|30|LSG|0.3|64|-|
+Manav Suthar|SP|IN|0|30|GT|0.3|60|-|
+Manimaran Siddharth|SP|IN|0|75|LSG|0.75|66|-|
+Swapnil Singh|SP|IN|0|50|RCB|0.5|62|-|
+Kumar Kartikeya|SP|IN|0|30|RR|0.3|60|-|
+Zeeshan Ansari|SP|IN|0|30|SRH|0.4|60|-|
+Praveen Dubey|SP|IN|0|30|PBKS|0.3|58|-|
+Piyush Chawla|SP|IN|1|50|-|0|66|MI|
+Tabraiz Shamsi|SP|SA|1|100|-|0|68|-|
+Adil Rashid|SP|ENG|1|200|-|0|78|-|
+Keshav Maharaj|SP|SA|1|75|-|0|74|-|
+Mujeeb Ur Rahman|SP|AFG|1|200|-|0|72|-|
+Phil Salt|WK|ENG|1|200|RCB|11.5|86|KKR|
+Quinton de Kock|WK|SA|1|200|KKR|3.6|84|LSG|
+Ishan Kishan|WK|IN|1|200|SRH|11.25|82|MI|
+Rahmanullah Gurbaz|WK|AFG|1|200|KKR|2|76|KKR|
+Jitesh Sharma|WK|IN|1|100|RCB|11|78|PBKS|
+Josh Inglis|WK|AUS|1|200|PBKS|2.6|80|-|
+Kumar Kushagra|WK|IN|0|30|GT|0.65|64|DC|
+Anuj Rawat|WK|IN|0|30|GT|0.3|62|-|
+Vishnu Vinod|WK|IN|0|30|PBKS|0.95|64|-|
+Robin Minz|WK|IN|0|30|MI|0.65|68|-|
+Vansh Bedi|WK|IN|0|30|CSK|0.55|62|-|
+Loveeth Sisodia|WK|IN|0|30|KKR|0.3|56|-|
+Aryan Juyal|WK|IN|0|30|LSG|0.3|60|-|
+Krishnan Shrijith|WK|IN|0|30|MI|0.3|56|-|
+Kunal Singh Rathore|WK|IN|0|30|RR|0.3|56|-|
+Donovan Ferreira|WK|SA|1|75|DC|0.75|66|RR|
+Jonny Bairstow|WK|ENG|1|200|-|0|80|PBKS|
+Alex Carey|WK|AUS|1|100|-|0|74|-|
+Sam Billings|WK|ENG|1|200|-|0|70|-|
+Tom Kohler-Cadmore|WK|ENG|1|75|-|0|66|-|
+Wriddhiman Saha|WK|IN|1|75|-|0|60|GT|
+Tim Seifert|WK|NZ|1|200|-|0|72|-|
+David Warner|BA|AUS|1|200|-|0|78|DC|
+Prithvi Shaw|BA|IN|1|75|-|0|70|DC|
+Kane Williamson|BA|NZ|1|200|-|0|78|GT|
+Mayank Agarwal|BA|IN|1|100|-|0|68|SRH|
+Joe Root|BA|ENG|1|200|-|0|78|-|
+Rilee Rossouw|BA|SA|1|200|-|0|74|PBKS|
+Finn Allen|BA|NZ|1|200|-|0|74|-|
+Dewald Brevis|BA|SA|0|75|-|0|74|MI|
+`;
+
+const MARQUEE_REAL = [
+  ['Jos Buttler', 'Shreyas Iyer', 'Rishabh Pant', 'Kagiso Rabada', 'Arshdeep Singh', 'Mitchell Starc'],
+  ['Yuzvendra Chahal', 'Liam Livingstone', 'David Miller', 'KL Rahul', 'Mohammed Shami', 'Mohammed Siraj'],
+];
+
+const PLAYERS = RAW.trim().split('\n').map((l, i) => {
+  const [name, role, nat, cap, base, team, price, ovr, prev, ret] = l.split('|');
+  return {
+    id: i, name, role, nat, os: nat !== 'IN', capped: cap === '1', base: +base,
+    team25: team === '-' ? null : team, price25: Math.round(+price * 100),
+    ovr: +ovr, prev: prev === '-' ? null : prev, ret: ret === 'R',
+  };
+});
+
+/* ===== ENGINE (no DOM access) ===== */
+const MIN_SQ = 19, MAX_SQ = 25, MAX_OS = 8, PURSE = 13000, MIN_BASE = 30; // money is stored in lakh
+const SLABS = [1800, 1400, 1100, 1800, 1400], UNC_SLAB = 400;
+const TM = Object.fromEntries(TEAMS.map(t => [t.id, t]));
+const ROLE_NAME = { BA: 'Batter', AR: 'All-rounder', WK: 'Wicketkeeper', FA: 'Fast bowler', SP: 'Spinner' };
+const TARGET = { BA: 5, AR: 4, WK: 3, FA: 6, SP: 3 };
+
+const rnd = (a, b) => a + Math.random() * (b - a);
+const shuffle = a => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+const inc = l => l < 100 ? 5 : l < 200 ? 10 : l < 500 ? 20 : 25;
+const fmt = l => { if (l >= 100) { const c = l / 100; return '₹' + (Number.isInteger(c) ? c : +c.toFixed(2)) + ' Cr'; } return '₹' + l + ' L'; };
+const say = l => { const c = Math.floor(l / 100), k = l % 100; return [c ? c + ' crore' : '', k ? k + ' lakh' : ''].filter(Boolean).join(' ') + ' rupees'; };
+const fairPrice = o => Math.min(3000, Math.max(30, Math.round(30 * Math.exp((o - 55) * 0.12) / 5) * 5));
+const chunk = (arr, size) => { if (!arr.length) return []; const n = Math.ceil(arr.length / size), s = Math.ceil(arr.length / n); const out = []; for (let i = 0; i < arr.length; i += s) out.push(arr.slice(i, i + s)); return out; };
+
+/* ---------- squad helpers ---------- */
+function info(G, t) {
+  const T = G.teams[t], roles = { BA: 0, AR: 0, WK: 0, FA: 0, SP: 0 }; let os = 0;
+  for (const e of T.squad) { const p = G.players[e.pid]; roles[p.role]++; if (p.os) os++; }
+  const n = T.squad.length;
+  return { n, os, roles, ind: n - os, purse: T.purse, indLeft: MAX_SQ - n, osLeft: Math.max(0, Math.min(MAX_OS - os, MAX_SQ - n)) };
+}
+const reserveFor = n => Math.max(0, MIN_SQ - (n + 1)) * MIN_BASE;
+function maxAfford(G, t) { const T = G.teams[t]; return T.purse - reserveFor(T.squad.length); }
+function whyNot(G, t, p, price) {
+  const I = info(G, t);
+  if (I.n >= MAX_SQ) return 'Squad is full (25)';
+  if (p.os && I.os >= MAX_OS) return 'Overseas limit reached (8)';
+  if (price > maxAfford(G, t)) return 'Not enough purse (must keep ₹30 L per slot to reach 19 players)';
+  return null;
+}
+const canBid = (G, t, p, price) => !whyNot(G, t, p, price);
+const nextPrice = (c, p) => c.leader ? c.price + inc(c.price) : p.base;
+
+/* ---------- AI valuation ---------- */
+function maxBid(G, t, p) {
+  const T = G.teams[t], I = info(G, t);
+  let v = fairPrice(p.ovr) * G.scale;
+  const need = TARGET[p.role] - I.roles[p.role];
+  v *= need >= 2 ? 1.22 : need === 1 ? 1.1 : need === 0 ? 0.95 : 0.6;
+  if (I.n < 14) v *= 1.1;
+  if (I.n >= 21) v *= 0.45;
+  if (p.os && I.os >= 7) v *= 0.6;
+  v *= T.aggr * rnd(0.75, 1.4);
+  if (p.ovr >= 88) v *= 1.06;
+  if (G.accel) v *= 0.8;
+  v = Math.min(v, maxAfford(G, t), Math.max(T.purse * 0.4, 500));
+  return Math.max(0, Math.floor(v / 5) * 5);
+}
+
+/* ---------- game setup ---------- */
+function newGame(mode, user, customPicks) {
+  const G = {
+    mode, user, players: PLAYERS.map(p => ({ ...p, owner: null, soldPrice: 0, rtmTeam: null })),
+    rosters: {}, teams: {}, pool: [], sets: [], unsold: [], sold: [], filled: [], log: [], interest: {},
+    scale: 0.8, wishlist: {}, auto: true, accel: false, stage: 'retention', cur: null, lotNo: 0, totalLots: 0, reveal: {},
+  };
+  TEAMS.forEach(t => { G.teams[t.id] = { id: t.id, purse: PURSE, squad: [], rtm: 0, aggr: rnd(0.9, 1.18), retained: [] }; G.rosters[t.id] = []; });
+  if (mode === 'real') {
+    G.players.forEach(p => { if (p.prev) G.rosters[p.prev].push(p.id); });
+  } else if (mode === 'mini') {
+    G.players.forEach(p => { if (p.team25) G.rosters[p.team25].push(p.id); });
+    for (const t of TEAMS) {
+      let r = G.rosters[t.id];
+      const osOf = () => r.filter(id => G.players[id].os);
+      while (osOf().length > MAX_OS) { const worst = osOf().sort((a, b) => G.players[a].ovr - G.players[b].ovr)[0]; r = r.filter(id => id !== worst); }
+      while (r.length > MAX_SQ) { const worst = [...r].sort((a, b) => G.players[a].ovr - G.players[b].ovr)[0]; r = r.filter(id => id !== worst); }
+      G.rosters[t.id] = r;
+    }
+  } else {
+    G.rosters[user] = [...customPicks];
+    const taken = new Set(customPicks);
+    const others = TEAMS.map(t => t.id).filter(id => id !== user);
+    for (let round = 0; round < 14; round++) {
+      for (const id of shuffle([...others])) {
+        const avail = G.players.filter(p => !taken.has(p.id) && !(p.os && G.rosters[id].filter(x => G.players[x].os).length >= MAX_OS))
+          .sort((a, b) => b.ovr - a.ovr).slice(0, 14);
+        if (!avail.length) continue;
+        const p = avail[Math.floor(Math.random() * avail.length)];
+        taken.add(p.id); G.rosters[id].push(p.id);
+      }
+    }
+  }
+  return G;
+}
+
+const slabCosts = (G, pids) => { let ci = 0; return pids.map(pid => G.players[pid].capped ? (SLABS[ci++] ?? 1100) : UNC_SLAB); };
+
+function validateRetention(G, pids) {
+  const ps = pids.map(id => G.players[id]);
+  if (G.mode === 'mini') {
+    const os = ps.filter(p => p.os).length, cost = ps.reduce((s, p) => s + p.price25, 0);
+    if (ps.length > MAX_SQ) return { ok: false, msg: 'Maximum 25 players', cost };
+    if (os > MAX_OS) return { ok: false, msg: 'Maximum 8 overseas players', cost };
+    if (cost > PURSE) return { ok: false, msg: 'Contracts exceed the ₹130 Cr purse', cost };
+    return { ok: true, cost, costs: ps.map(p => p.price25), rtm: 0 };
+  }
+  const cap = ps.filter(p => p.capped).length, unc = ps.length - cap;
+  const costs = slabCosts(G, pids), cost = costs.reduce((a, b) => a + b, 0);
+  if (ps.length > 6) return { ok: false, msg: 'Maximum 6 retentions', cost, costs };
+  if (cap > 5) return { ok: false, msg: 'Maximum 5 capped players', cost, costs };
+  if (unc > 2) return { ok: false, msg: 'Maximum 2 uncapped players', cost, costs };
+  return { ok: true, cost, costs, rtm: 6 - ps.length };
+}
+
+function aiRetainPicks(G, roster) {
+  const sorted = [...roster].sort((a, b) => G.players[b].ovr - G.players[a].ovr);
+  const out = []; let cap = 0, unc = 0;
+  for (const pid of sorted) {
+    const p = G.players[pid];
+    if (out.length >= 6) break;
+    if (p.ovr < 76) continue;
+    if (p.capped) { if (cap >= 5) continue; cap++; } else { if (unc >= 2) continue; unc++; }
+    out.push(pid);
+  }
+  return out;
+}
+
+function aiMiniKeep(G, roster) {
+  const ps = roster.map(id => G.players[id]);
+  let keep = ps.filter(p => p.ovr >= 80 || (p.ovr >= 68 && p.price25 <= fairPrice(p.ovr) * 1.8 + 50));
+  const rest = ps.filter(p => !keep.includes(p)).sort((a, b) => b.ovr - a.ovr);
+  while (keep.length < 12 && rest.length) keep.push(rest.shift());
+  const sum = () => keep.reduce((s, p) => s + p.price25, 0);
+  while (sum() > 11800 && keep.length > 10) {
+    keep.sort((a, b) => (b.price25 / fairPrice(b.ovr)) - (a.price25 / fairPrice(a.ovr)));
+    keep.shift();
+  }
+  return keep.map(p => ({ pid: p.id, cost: p.price25 }));
+}
+
+function finalizeRetention(G, userPids) {
+  const retained = new Set();
+  for (const t of TEAMS) {
+    const id = t.id, roster = G.rosters[id];
+    let list;
+    if (id === G.user) {
+      const v = validateRetention(G, userPids);
+      list = userPids.map((pid, i) => ({ pid, cost: v.costs[i] }));
+    } else if (G.mode === 'real') {
+      list = roster.filter(pid => G.players[pid].ret).map(pid => ({ pid, cost: G.players[pid].price25 }));
+    } else if (G.mode === 'custom') {
+      const picks = aiRetainPicks(G, roster), costs = slabCosts(G, picks);
+      list = picks.map((pid, i) => ({ pid, cost: costs[i] }));
+    } else list = aiMiniKeep(G, roster);
+    const T = G.teams[id];
+    T.purse = PURSE - list.reduce((s, e) => s + e.cost, 0);
+    T.rtm = G.mode === 'mini' ? 0 : Math.max(0, 6 - list.length);
+    list.forEach(e => { T.squad.push({ pid: e.pid, price: e.cost, how: 'RET' }); G.players[e.pid].owner = id; retained.add(e.pid); });
+    G.reveal[id] = list.map(e => ({ ...e }));
+  }
+  G.pool = G.players.filter(p => !retained.has(p.id)).map(p => p.id);
+  for (const t of TEAMS) for (const pid of G.rosters[t.id]) {
+    if (!retained.has(pid) && G.mode !== 'mini') G.players[pid].rtmTeam = t.id;
+  }
+  G.sets = buildSets(G);
+  G.totalLots = G.sets.reduce((s, x) => s + x.pids.length, 0);
+  G.stage = 'prep';
+  return G;
+}
+
+function buildSets(G) {
+  const pool = G.pool.map(id => G.players[id]), sets = [], used = new Set();
+  let marquee;
+  if (G.mode === 'real') {
+    const byName = Object.fromEntries(pool.map(p => [p.name, p]));
+    marquee = MARQUEE_REAL.map(l => l.map(n => byName[n]).filter(Boolean));
+  } else {
+    const top = pool.filter(p => p.capped).sort((a, b) => b.ovr - a.ovr).slice(0, 12);
+    marquee = [top.slice(0, 6), top.slice(6, 12)];
+  }
+  marquee.forEach((m, i) => { if (m.length) { sets.push({ code: 'M' + (i + 1), name: 'Marquee Set ' + (i + 1), pids: shuffle(m.map(p => p.id)) }); m.forEach(p => used.add(p.id)); } });
+  const rest = pool.filter(p => !used.has(p.id));
+  const roles = [['BA', 'Batters'], ['AR', 'All-rounders'], ['WK', 'Wicketkeepers'], ['FA', 'Fast bowlers'], ['SP', 'Spinners']];
+  const byRole = {};
+  roles.forEach(([r]) => { byRole[r] = chunk(rest.filter(p => p.capped && p.role === r).sort((a, b) => b.ovr - a.ovr), 10); });
+  const unc = chunk(rest.filter(p => !p.capped).sort((a, b) => b.ovr - a.ovr), 10);
+  const rounds = Math.max(unc.length, ...roles.map(([r]) => byRole[r].length));
+  for (let i = 0; i < rounds; i++) {
+    roles.forEach(([r, label]) => { const c = byRole[r][i]; if (c) sets.push({ code: r + (i + 1), name: label + ' · Set ' + (i + 1), pids: shuffle(c.map(p => p.id)) }); });
+    if (unc[i]) sets.push({ code: 'UC' + (i + 1), name: 'Uncapped · Set ' + (i + 1), pids: shuffle(unc[i].map(p => p.id)) });
+  }
+  sets.forEach((s, i) => { s.idx = i; });
+  return sets;
+}
+
+/* ---------- auction ---------- */
+function place(G, H, t, price) {
+  const c = G.cur;
+  c.price = price; c.leader = t; c.idle = 0; c.hist.push({ t, price });
+  return H.bid(t, price);
+}
+
+function userBid(G, H) {
+  const c = G.cur;
+  if (!c || c.phase !== 'bidding') return { ok: false, msg: 'Bidding is not open right now' };
+  if (c.leader === G.user) return { ok: false, msg: 'You already hold the highest bid' };
+  const p = G.players[c.pid], next = nextPrice(c, p), why = whyNot(G, G.user, p, next);
+  if (why) return { ok: false, msg: why };
+  place(G, H, G.user, next);
+  return { ok: true };
+}
+
+function purchase(G, t, p, price, how) {
+  const T = G.teams[t];
+  T.purse -= price; T.squad.push({ pid: p.id, price, how }); p.owner = t; p.soldPrice = price;
+  G.sold.push({ pid: p.id, team: t, price, how });
+}
+
+async function rtmFlow(G, H, p, winner, price) {
+  const r = p.rtmTeam;
+  if (G.mode === 'mini' || !r || r === winner) return { w: winner, pr: price, rtm: false };
+  const RT = G.teams[r];
+  if (RT.rtm <= 0 || !canBid(G, r, p, price)) return { w: winner, pr: price, rtm: false };
+  const aiInterest = () => G.interest[r] != null ? G.interest[r] : maxBid(G, r, p);
+  const wants = r === G.user ? await H.rtmAsk(p, winner, price) : aiInterest() >= price;
+  if (!wants) return { w: winner, pr: price, rtm: false };
+  await H.rtmNote(r, p, price);
+  let np = price;
+  if (winner === G.user) {
+    np = await H.rtmRaise(p, r, price);
+  } else {
+    const mx = G.interest[winner] != null ? G.interest[winner] : 0;
+    if (mx >= price + inc(price) && Math.random() < 0.6) {
+      const steps = 1 + Math.floor(Math.random() * 3);
+      for (let i = 0; i < steps; i++) { const n2 = np + inc(np); if (n2 <= mx && canBid(G, winner, p, n2)) np = n2; else break; }
+    }
+  }
+  if (np > price) {
+    await H.rtmRaised(winner, p, np);
+    const match = canBid(G, r, p, np) && (r === G.user ? await H.rtmMatch(p, winner, np) : aiInterest() >= np);
+    if (!match) return { w: winner, pr: np, rtm: false };
+  }
+  RT.rtm--;
+  return { w: r, pr: np, rtm: true };
+}
+
+async function lot(G, H, pid) {
+  const p = G.players[pid];
+  G.lotNo++;
+  G.cur = { pid, price: 0, leader: null, hist: [], idle: 0, phase: 'bidding' };
+  G.interest = {};
+  TEAMS.forEach(t => { if (t.id !== G.user) G.interest[t.id] = maxBid(G, t.id, p); });
+  await H.lotStart(p);
+  const c = G.cur;
+  for (;;) {
+    await H.wait(c.hist.length ? H.gap.bid : H.gap.open);
+    const next = nextPrice(c, p), wl = G.wishlist[pid];
+    if (G.auto && wl && c.leader !== G.user && next <= wl.max && canBid(G, G.user, p, next)) { await place(G, H, G.user, next); continue; }
+    const cands = TEAMS.map(t => t.id).filter(id => id !== G.user && id !== c.leader && G.interest[id] >= next && canBid(G, id, p, next));
+    if (cands.length) { await place(G, H, cands[Math.floor(Math.random() * cands.length)], next); continue; }
+    c.idle++;
+    if (!c.leader) { if (c.idle >= 2) break; continue; }
+    if (c.idle >= 3) break;
+    await H.going(c.idle);
+  }
+  c.phase = 'resolving';
+  if (!c.leader) { G.unsold.push(pid); await H.unsold(p); return; }
+  const res = await rtmFlow(G, H, p, c.leader, c.price);
+  purchase(G, res.w, p, res.pr, res.rtm ? 'RTM' : 'AUC');
+  await H.sold(res.w, p, res.pr, res.rtm);
+}
+
+function genPlayer(G, role) {
+  const id = G.players.length, k = G.filled.length + 1;
+  const p = { id, name: 'Domestic Prospect ' + k, role, nat: 'IN', os: false, capped: false, base: MIN_BASE, team25: null, price25: 0, ovr: 50, prev: null, ret: false, owner: null, soldPrice: 0, rtmTeam: null, gen: true };
+  G.players.push(p);
+  return p;
+}
+
+async function run(G, H) {
+  G.stage = 'auction';
+  for (const s of G.sets) {
+    await H.setStart(s);
+    for (const pid of s.pids) await lot(G, H, pid);
+  }
+  const again = G.unsold.filter(id => G.players[id].ovr >= 55).sort((a, b) => G.players[b].ovr - G.players[a].ovr);
+  if (again.length) {
+    G.accel = true; G.unsold = G.unsold.filter(id => !again.includes(id));
+    const s = { code: 'ACC', name: 'Accelerated · Unsold players', pids: again, idx: G.sets.length };
+    G.sets.push(s); await H.setStart(s);
+    for (const pid of again) await lot(G, H, pid);
+  }
+  const roleCycle = ['BA', 'FA', 'AR', 'WK', 'SP'];
+  for (const t of TEAMS) {
+    const T = G.teams[t.id];
+    while (T.squad.length < MIN_SQ && T.purse >= MIN_BASE) {
+      const p = genPlayer(G, roleCycle[T.squad.length % 5]);
+      purchase(G, t.id, p, MIN_BASE, 'FILL'); G.filled.push({ team: t.id, pid: p.id });
+    }
+  }
+  G.stage = 'done';
+  await H.end();
+}
+
+function teamRating(G, t) {
+  const ps = G.teams[t].squad.map(e => G.players[e.pid]).sort((a, b) => b.ovr - a.ovr);
+  const xi = []; let os = 0;
+  for (const p of ps) { if (xi.length >= 11) break; if (p.os) { if (os >= 4) continue; os++; } xi.push(p); }
+  return xi.length ? xi.reduce((s, p) => s + p.ovr, 0) / xi.length : 0;
+}
+
+
+/* ===== UI ===== */
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const SCREEN = $('#screen'), MODAL = $('#modal');
+const UI = { mode: 'real', team: null, screen: 'home', tab: 'wish', paused: false, speed: 'normal', voice: true, voiceName: '', ff: false,
+  selRet: [], custom: [], q: '', role: '', setf: '', onlyWish: false, cq: '', crole: '', openSets: new Set(), started: false, modalRes: null };
+let G = null;
+const SPEED = { normal: 1, fast: 0.45, turbo: 0.1 };
+const MODES = [
+  { id: 'real', name: 'Mega Auction (Real)', k: '2025 player pool', d: 'The 2025 mega-auction pool and set order. Retain up to 6 (max 5 capped, max 2 uncapped). Every slot you leave open becomes an RTM card.' },
+  { id: 'mini', name: 'Mini Auction', k: 'Keep any number', d: 'Start from the 2025 squads. Keep as many players as you want and release the rest. Contracts stay on your purse. No RTM.' },
+  { id: 'custom', name: 'Mega Auction (Custom)', k: 'Your own squad', d: 'You pick your pre-auction squad from the full player list and the bots build the other nine. Then retain up to 6 or hold RTM cards.' },
+];
+
+/* ---------- small renderers ---------- */
+const initials = n => n.split(' ').filter(Boolean).slice(0, 2).map(w => w[0]).join('').toUpperCase();
+const clamp = v => Math.max(5, Math.min(99, Math.round(v)));
+function crest(id, size = 40) {
+  const t = TM[id];
+  const fs = id.length > 3 ? 12 : id.length === 3 ? 15 : 19;
+  const svg = `<svg class="crest" width="${size}" height="${size}" viewBox="0 0 48 48" role="img" aria-label="${esc(t.name)}"><path d="M24 2 43 8v16c0 11-8 18-19 22C13 42 5 35 5 24V8z" fill="${t.c1}" stroke="${t.ring}" stroke-width="2.5"/><text x="24" y="30" text-anchor="middle" font-family="Big Shoulders Display,Oswald,Arial Narrow,sans-serif" font-weight="900" font-size="${fs}" fill="${t.ink}">${id}</text></svg>`;
+  const src = ASSETS.logo[id] || `logos/${id}.png`;
+  return `<span class="cw" style="width:${size}px;height:${size}px">${svg}<img src="${esc(src)}" alt="" onload="this.previousElementSibling.style.display='none'" onerror="this.remove()"></span>`;
+}
+const slug = n => n.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+function portrait(p) {
+  const src = ASSETS.photo[p.id] || `photos/${slug(p.name)}.jpg`;
+  return `<svg viewBox="0 0 170 200" role="img" aria-label="${esc(p.name)}"><path d="M8 200c0-48 30-70 77-70s77 22 77 70z" style="fill:var(--tc)"/><path d="M62 132l23 22 23-22" fill="none" stroke="#ffffff55" stroke-width="3"/><rect x="73" y="108" width="24" height="28" rx="8" fill="#9aa6d6"/><ellipse cx="85" cy="78" rx="30" ry="36" fill="#b3bde6"/><path d="M53 74c0-30 14-42 32-42s32 12 32 42c-7-15-19-21-32-21s-25 6-32 21z" fill="#1a2250"/></svg><span class="ini">${esc(initials(p.name))}</span><img src="${esc(src)}" alt="${esc(p.name)}" onload="this.parentNode.querySelectorAll('svg,.ini').forEach(e=>e.style.display='none')" onerror="this.remove()">`;
+}
+function realStats(p) {
+  const rs = window.STATS && window.STATS[p.name];
+  if (!rs) return '';
+  return '<div class="rs">' + Object.entries(rs).map(([k, v]) => `<span>${esc(k)} <b>${esc(v)}</b></span>`).join('') + '</div>';
+}
+function pstats(p) {
+  const j = (p.id * 7 % 9) - 4, o = p.ovr;
+  const m = { BA: [o, 28], AR: [o - 4, o - 6], WK: [o, 12], FA: [26, o], SP: [28, o] }[p.role];
+  return { bat: clamp(m[0] + j), bowl: clamp(m[1] + j), ovr: o };
+}
+const tags = p => `<span class="tag">${ROLE_NAME[p.role]}</span><span class="tag ${p.os ? 'os' : ''}">${p.os ? 'Overseas · ' + esc(p.nat) : 'India'}</span><span class="tag ${p.capped ? 'cap' : 'unc'}">${p.capped ? 'Capped' : 'Uncapped'}</span>`;
+const avatar = p => `<span class="av">${esc(initials(p.name))}</span>`;
+const sub = p => `${ROLE_NAME[p.role]} · ${p.os ? esc(p.nat) : 'IND'} · ${p.capped ? 'Capped' : 'Uncapped'} · ${p.ovr}`;
+const prow = (p, right, cls = '') => `<div class="prow ${cls}">${avatar(p)}<div class="pi"><b>${esc(p.name)}</b><small>${sub(p)}</small></div><div class="pr">${right}</div></div>`;
+const setHTML = (el, html) => { const st = el.scrollTop; el.innerHTML = html; el.scrollTop = st; };
+const PL = id => (G ? G.players : PLAYERS)[id];
+
+function toast(msg, ms = 2600) {
+  const t = $('#toast'); t.textContent = msg; t.hidden = false;
+  clearTimeout(toast.t); toast.t = setTimeout(() => { t.hidden = true; }, ms);
+}
+function openModal(html, wide) { MODAL.className = 'modal' + (wide ? ' wide' : ''); MODAL.innerHTML = '<div role="dialog" aria-modal="true">' + html + '</div>'; MODAL.hidden = false; }
+function closeModal() { MODAL.hidden = true; MODAL.innerHTML = ''; }
+function ask(html, wide) { return new Promise(res => { UI.modalRes = res; openModal(html, wide); }); }
+function answer(v) { const r = UI.modalRes; UI.modalRes = null; closeModal(); if (r) r(v); }
+
+/* ---------- navigation ---------- */
+const STEPS = [['home', 'Mode'], ['retention', 'Retention'], ['prep', 'Wishlist'], ['auction', 'Auction']];
+function crumbs() {
+  const order = { home: 0, custom: 0, retention: 1, reveal: 1, prep: 2, auction: 3, done: 3 }[UI.screen];
+  $('#crumbs').innerHTML = STEPS.map(([k, n], i) => `<span class="${i === order ? 'on' : i < order ? 'past' : ''}">${n}</span>`).join('');
+}
+function go(s) {
+  UI.screen = s; window.scrollTo(0, 0); closeModal();
+  ({ home: renderHome, custom: renderCustom, retention: renderRet, reveal: renderReveal, prep: renderPrep, auction: buildAuction, done: renderDone })[s]();
+  crumbs();
+}
+
+/* ---------- home ---------- */
+function renderHome() {
+  SCREEN.innerHTML = `
+  <section class="hero"><h1>Build your squad.<br><em>Outbid nine bots.</em></h1>
+    <p>A fan-made IPL auction room with live bidding, retentions, RTM cards, set-by-set player flow and a voice that calls every bid.</p>
+    <div class="rulestrip"><span>₹130 Cr purse</span><span>19–25 players</span><span>Max 8 overseas</span><span>Bid steps 5 L → 25 L</span></div></section>
+  <section class="sec"><h2>1 · Choose your auction</h2>
+    <div class="modes">${MODES.map(m => `<button class="mode" data-act="mode" data-v="${m.id}" aria-pressed="${UI.mode === m.id}"><span class="k">${m.k}</span><b>${m.name}</b><p>${m.d}</p></button>`).join('')}</div></section>
+  <section class="sec"><h2>2 · Pick your franchise</h2>
+    <div class="teamgrid">${TEAMS.map(t => `<button class="teamtile" style="--tc:${t.c1}" data-act="team" data-v="${t.id}" aria-pressed="${UI.team === t.id}">${crest(t.id, 56)}<b>${t.name}</b></button>`).join('')}</div>
+    <div class="cta"><button class="btn gold" data-act="start" ${UI.team ? '' : 'disabled'}>${UI.mode === 'custom' ? 'Build my squad' : 'Continue to retentions'}</button>
+    <small>${UI.team ? 'You will run ' + TM[UI.team].name + '.' : 'Select a team to continue.'}</small></div></section>
+  <p class="note">Fan-made simulator, not affiliated with the BCCI or the IPL. Player ratings are my own estimates (not official statistics) and 2025 prices are from memory, so a few may be off. Team crests are drawn in code and player portraits are neutral silhouettes, because official logos and photos cannot be loaded inside this page.</p>`;
+}
+
+/* ---------- custom squad ---------- */
+function renderCustom() {
+  SCREEN.innerHTML = `<div class="two"><section class="card"><h2>Build your pre-auction squad</h2>
+    <small>Pick the players you hold before the auction (6 to 25, max 8 overseas). You retain up to 6 of them next. The bots draft their own squads.</small>
+    <div class="filters"><input type="search" id="cq" placeholder="Search player" value="${esc(UI.cq)}"><select id="crole"><option value="">All roles</option>${Object.entries(ROLE_NAME).map(([k, v]) => `<option value="${k}" ${UI.crole === k ? 'selected' : ''}>${v}</option>`).join('')}</select></div>
+    <div class="plist" id="clist"></div></section>
+    <aside class="card sticky" id="cside"></aside></div>`;
+  updCustom();
+}
+function updCustom() {
+  const sel = UI.custom, q = UI.cq.toLowerCase();
+  const list = PLAYERS.filter(p => (!UI.crole || p.role === UI.crole) && (!q || p.name.toLowerCase().includes(q))).sort((a, b) => b.ovr - a.ovr);
+  setHTML($('#clist'), list.map(p => { const on = sel.includes(p.id); return prow(p, `<button class="btn mini ${on ? 'on' : ''}" data-act="cpick" data-id="${p.id}">${on ? 'Added' : 'Add'}</button>`, on ? 'sel' : ''); }).join(''));
+  const os = sel.filter(id => PLAYERS[id].os).length, ok = sel.length >= 6 && sel.length <= 25 && os <= MAX_OS;
+  $('#cside').innerHTML = `<h3>${crest(UI.team, 30)} Your squad</h3>
+    <div class="stat"><span>Players</span><b>${sel.length} / 25</b></div><div class="stat"><span>Overseas</span><b>${os} / 8</b></div>
+    <div class="sidebody" style="max-height:44vh">${sel.length ? sel.map(id => prow(PLAYERS[id], `<button class="btn mini" data-act="cpick" data-id="${id}">Remove</button>`)).join('') : '<div class="empty">Add at least 6 players.</div>'}</div>
+    ${os > MAX_OS ? '<div class="msg">Overseas limit is 8.</div>' : sel.length < 6 ? '<div class="msg">Pick at least 6 players.</div>' : ''}
+    <div class="cta"><button class="btn gold" data-act="customdone" ${ok ? '' : 'disabled'}>Continue</button><button class="btn" data-act="home">Back</button></div>`;
+}
+
+/* ---------- retention ---------- */
+function renderRet() {
+  const mini = G.mode === 'mini';
+  SCREEN.innerHTML = `<div class="two"><section class="card"><h2>${mini ? 'Choose who to keep' : 'Choose your retentions'} · ${TM[UI.team].name}</h2>
+    <small>${mini ? 'Everyone you keep counts against your ₹130 Cr purse at their contract price. Released players go into the auction pool.'
+      : 'Retain up to 6 players (max 5 capped, max 2 uncapped). Capped slabs follow the order you pick: ₹18, 14, 11, 18, 14 Cr. Uncapped cost ₹4 Cr. Each unused slot becomes an RTM card.'}</small>
+    <div class="plist" id="rlist" style="margin-top:12px;max-height:none"></div></section>
+    <aside class="card sticky" id="rside"></aside></div>`;
+  updRet();
+}
+function updRet() {
+  const sel = UI.selRet, v = validateRetention(G, sel), mini = G.mode === 'mini';
+  const roster = [...G.rosters[UI.team]].sort((a, b) => G.players[b].ovr - G.players[a].ovr);
+  setHTML($('#rlist'), roster.map(id => {
+    const p = G.players[id], i = sel.indexOf(id);
+    const hint = i >= 0 ? `<span class="tag hot">${mini ? 'Keep' : 'Slot ' + (i + 1)} · ${fmt(v.costs ? v.costs[i] : p.price25)}</span>` : (mini ? `<small>${fmt(p.price25)}</small>` : (G.mode === 'real' && p.ret ? '<small>Retained in 2025</small>' : ''));
+    return prow(p, hint + `<button class="btn mini ${i >= 0 ? 'on' : ''}" data-act="retpick" data-id="${id}">${i >= 0 ? (mini ? 'Kept' : 'Retained') : (mini ? 'Keep' : 'Retain')}</button>`, i >= 0 ? 'sel' : '');
+  }).join('') || '<div class="empty">No players on file for this team.</div>');
+  const cap = sel.filter(id => G.players[id].capped).length, os = sel.filter(id => G.players[id].os).length;
+  $('#rside').innerHTML = `<h3>${crest(UI.team, 30)} Summary</h3>
+    ${mini ? `<div class="stat"><span>Players kept</span><b>${sel.length} / 25</b></div><div class="stat"><span>Overseas</span><b>${os} / 8</b></div><div class="stat"><span>Contracts</span><b>${fmt(v.cost)}</b></div>`
+      : `<div class="stat"><span>Retained</span><b>${sel.length} / 6</b></div><div class="stat"><span>Capped / Uncapped</span><b>${cap} / ${sel.length - cap}</b></div><div class="stat"><span>Retention cost</span><b>${fmt(v.cost)}</b></div><div class="stat"><span>RTM cards</span><b>${v.ok ? v.rtm : '-'}</b></div>`}
+    <div class="stat"><span>Purse for the auction</span><b>${fmt(PURSE - v.cost)}</b></div>
+    ${v.ok ? '' : `<div class="msg">${esc(v.msg)}</div>`}
+    <small>${mini ? 'No RTM cards in a mini auction.' : 'The bots reveal their retentions after you confirm.'}</small>
+    <div class="cta"><button class="btn gold" data-act="retdone" ${v.ok ? '' : 'disabled'}>Confirm</button><button class="btn" data-act="home">Back</button></div>`;
+}
+function renderReveal() {
+  SCREEN.innerHTML = `<section class="sec"><h2>Retention day · all ten franchises</h2>
+    <div class="reveal">${TEAMS.map(t => { const T = G.teams[t.id], r = G.reveal[t.id];
+      return `<div class="rcard ${t.id === G.user ? 'me' : ''}" style="--tc:${t.c1}"><div class="row">${crest(t.id, 34)}<b class="grow" style="font-family:var(--f-disp);font-size:19px;text-transform:uppercase">${t.name}</b></div>
+      <ul>${r.length ? r.map(e => `<li><span>${esc(G.players[e.pid].name)}</span><b>${fmt(e.cost)}</b></li>`).join('') : '<li><span class="mute">No retentions</span></li>'}</ul>
+      <div class="stat"><span>Purse</span><b>${fmt(T.purse)}</b></div><div class="stat"><span>RTM cards</span><b>${T.rtm}</b></div></div>`; }).join('')}</div>
+    <div class="cta"><button class="btn gold" data-act="toprep">Build my wishlist</button></div></section>`;
+}
+
+/* ---------- wishlist / prep ---------- */
+const suggest = p => Math.max(p.base, fairPrice(p.ovr));
+function wlToggle(id) {
+  if (G.wishlist[id]) delete G.wishlist[id]; else G.wishlist[id] = { max: suggest(G.players[id]) };
+}
+function statusOf(p) {
+  if (G.cur && G.cur.pid === p.id && G.stage === 'auction' && G.cur.phase !== 'done') return ['On the block', 'cur'];
+  if (p.owner && G.sold.some(s => s.pid === p.id)) return [`${p.owner} ${fmt(p.soldPrice)}`, p.owner === G.user ? 'won' : 'lost'];
+  if (G.unsold.includes(p.id)) return ['Unsold', 'lost'];
+  return ['Upcoming', ''];
+}
+function wishHTML(live) {
+  const ids = Object.keys(G.wishlist).map(Number).sort((a, b) => G.players[b].ovr - G.players[a].ovr);
+  const total = ids.reduce((s, id) => s + G.wishlist[id].max, 0), purse = G.teams[G.user].purse;
+  const rows = ids.map(id => {
+    const p = G.players[id], w = G.wishlist[id], [st, cl] = live ? statusOf(p) : ['', ''];
+    return `<div class="wrow ${cl === 'cur' ? 'cur' : ''}"><div class="pi"><b>${esc(p.name)}</b><small>${ROLE_NAME[p.role]} · ${p.os ? esc(p.nat) : 'IND'} · base ${fmt(p.base)}${live ? ' · <b style="color:' + (cl === 'won' ? 'var(--ok)' : cl === 'lost' ? 'var(--live)' : 'var(--gold)') + '">' + esc(st) + '</b>' : ''}</small></div>
+      <label title="Your max price in crore"><input class="num" type="number" step="0.05" min="${p.base / 100}" max="${Math.floor(purse / 100)}" value="${w.max / 100}" data-act="wlmax" data-id="${id}" aria-label="Max price for ${esc(p.name)} in crore"></label>
+      <button class="btn mini" data-act="wl" data-id="${id}" aria-label="Remove ${esc(p.name)}">✕</button></div>`;
+  }).join('');
+  return `<h3>★ My wishlist <small>(${ids.length})</small></h3>
+    <small>Set the most you will pay (in ₹ Cr). With auto-bid on, I place your bids until the price passes your limit.</small>
+    <label class="row" style="margin:8px 0"><input type="checkbox" id="autobid" ${G.auto ? 'checked' : ''}> Auto-bid up to my price</label>
+    ${ids.length ? `<div class="stat"><span>If every target hits at your limit</span><b style="color:${total > purse ? 'var(--live)' : 'var(--ok)'}">${fmt(total)}</b></div><div class="stat"><span>Your purse</span><b>${fmt(purse)}</b></div>` : ''}
+    <div style="margin-top:8px">${rows || '<div class="empty">Tap ☆ beside a player to add a target.</div>'}</div>`;
+}
+function renderPrep() {
+  const me = G.teams[G.user];
+  SCREEN.innerHTML = `<div class="two"><section class="card"><div class="row"><h2 class="grow">Sets and players · ${G.pool.length} in the pool</h2><button class="btn gold" data-act="startauction">Start auction</button></div>
+    <small>Browse the sets in the order they will come up. Star the players you want. You hold ${fmt(me.purse)} and ${G.mode === 'mini' ? 'no RTM cards' : me.rtm + ' RTM card' + (me.rtm === 1 ? '' : 's')}.</small>
+    <div class="filters"><input type="search" id="pq" placeholder="Search player" value="${esc(UI.q)}"><select id="prole"><option value="">All roles</option>${Object.entries(ROLE_NAME).map(([k, v]) => `<option value="${k}" ${UI.role === k ? 'selected' : ''}>${v}</option>`).join('')}</select>
+    <label class="row"><input type="checkbox" id="pwish" ${UI.onlyWish ? 'checked' : ''}> Wishlist only</label></div>
+    <div id="plist" class="sidebody" style="max-height:none"></div></section>
+    <aside class="card sticky" id="wishbox"></aside></div>`;
+  updPrep();
+}
+function updPrep() {
+  const q = UI.q.toLowerCase();
+  const html = G.sets.map(s => {
+    const ps = s.pids.map(id => G.players[id]).filter(p => (!UI.role || p.role === UI.role) && (!q || p.name.toLowerCase().includes(q)) && (!UI.onlyWish || G.wishlist[p.id]));
+    if (!ps.length) return '';
+    return `<details class="set" data-set="${s.idx}" ${UI.openSets.has(s.idx) || q || UI.onlyWish ? 'open' : ''}><summary>${esc(s.name)} <small>${ps.length} players</small></summary><div>
+      ${ps.map(p => prow(p, `<small>${fmt(p.base)}</small><button class="btn mini ${G.wishlist[p.id] ? 'on' : ''}" data-act="wl" data-id="${p.id}" aria-label="Toggle wishlist for ${esc(p.name)}">${G.wishlist[p.id] ? '★' : '☆'}</button>`, G.wishlist[p.id] ? 'sel' : '')).join('')}</div></details>`;
+  }).join('');
+  setHTML($('#plist'), html || '<div class="empty">No players match.</div>');
+  $('#wishbox').innerHTML = wishHTML(false);
+}
+
+/* ---------- voice ---------- */
+const SYN = typeof speechSynthesis !== 'undefined' ? speechSynthesis : null;
+let VOICES = [];
+function loadVoices() {
+  try { VOICES = SYN ? SYN.getVoices().filter(v => /^en/i.test(v.lang)) : []; } catch (e) { VOICES = []; }
+  const sel = $('#voiceSel'); if (!sel) return;
+  sel.innerHTML = '<option value="">Auto voice</option>' + VOICES.map(v => `<option value="${esc(v.name)}" ${v.name === UI.voiceName ? 'selected' : ''}>${esc(v.name)} (${esc(v.lang)})</option>`).join('');
+}
+function speak(text, max = 3200) {
+  return new Promise(res => {
+    if (!UI.voice || !SYN || UI.ff || UI.speed === 'turbo' || UI.paused) return res();
+    try {
+      SYN.cancel();
+      const u = new SpeechSynthesisUtterance(text);
+      const v = VOICES.find(x => x.name === UI.voiceName) || VOICES.find(x => x.lang === 'en-IN') || VOICES[0];
+      if (v) u.voice = v;
+      u.rate = UI.speed === 'fast' ? 1.25 : 1.02;
+      let done = false; const fin = () => { if (!done) { done = true; res(); } };
+      u.onend = fin; u.onerror = fin; setTimeout(fin, max); SYN.speak(u);
+    } catch (e) { res(); }
+  });
+}
+if (SYN) { try { SYN.onvoiceschanged = loadVoices; } catch (e) { /* ignore */ } }
+
+/* ---------- auction screen ---------- */
+function buildAuction() {
+  SCREEN.innerHTML = `
+  <div class="hud" id="hud"><span class="live" id="liveTag">LIVE</span><b id="hudSet" style="font-family:var(--f-disp);font-size:20px;text-transform:uppercase"></b><span class="mute" id="hudLot"></span>
+    <span class="grow"></span>
+    <button class="btn" id="pauseBtn" data-act="pause">Pause</button>
+    <label>Speed <select id="speedSel" data-act="speed"><option value="normal">Normal</option><option value="fast">Fast</option><option value="turbo">Turbo (no voice)</option></select></label>
+    <label><input type="checkbox" id="voiceChk" data-act="voice" ${UI.voice ? 'checked' : ''}> Voice</label>
+    <select id="voiceSel" data-act="voicesel" aria-label="Voice"></select>
+    <button class="btn" data-act="ff" id="ffBtn" title="Fast-forward until a wishlist player comes up">Skip to wishlist</button>
+    <button class="btn danger" data-act="quit">Quit</button></div>
+  <div class="arena">
+    <aside class="col teams-col" id="teamsCol"></aside>
+    <main class="stage card" id="stage">
+      <div class="lotbar"><span id="lotSet"></span><span id="lotInfo"></span></div>
+      <div class="lot"><div class="photo" id="photo"></div><div class="meta"><h2 id="pName">Auction starting…</h2><div id="pTags"></div><div class="facts" id="pFacts"></div><div class="bars" id="pBars"></div></div></div>
+      <div class="board"><div class="led"><small id="priceLbl">Base price</small><div class="price" id="price">—</div><div class="sayline" id="sayLine"></div></div>
+        <div class="leader" id="leader"></div></div>
+      <div class="actions"><button class="btn gold" id="bidBtn" data-act="bid" disabled>Bid</button><div id="bidMsg" class="mute grow"></div></div>
+      <ol class="blog" id="blog"></ol>
+      <div class="stamp" id="stamp" hidden></div><div class="pausedmask" id="pmask" hidden>PAUSED</div>
+    </main>
+    <aside class="col"><div class="card"><div class="tabs" role="tablist" id="tabs">
+      <button role="tab" data-act="tab" data-v="wish">Wishlist</button><button role="tab" data-act="tab" data-v="sets">Sets</button><button role="tab" data-act="tab" data-v="mine">My squad</button><button role="tab" class="only-m" data-act="tab" data-v="teams">Teams</button></div>
+      <div class="sidebody" id="sideBody"></div></div></aside>
+  </div>`;
+  $('#speedSel').value = UI.speed; loadVoices();
+  if (!SYN) { $('#voiceChk').disabled = true; $('#voiceSel').hidden = true; }
+  renderTeams(); renderSide(); updateBid();
+  if (!UI.started) { UI.started = true; G.stage = 'auction'; run(G, H).catch(e => { console.error(e); toast('Something went wrong: ' + e.message, 6000); }); }
+}
+function teamRows() {
+  return TEAMS.map(t => { const T = G.teams[t.id], I = info(G, t.id), lead = G.cur && G.cur.leader === t.id && G.cur.phase !== 'done';
+    return `<button class="trow ${t.id === G.user ? 'me' : ''} ${lead ? 'lead' : ''}" style="--tc:${t.c1}" data-act="team-view" data-t="${t.id}">${crest(t.id, 34)}
+      <span><b>${t.id}${t.id === G.user ? ' · YOU' : ''}</b><small>${I.n}/25 · IND +${I.indLeft} · OS +${I.osLeft}${G.mode === 'mini' ? '' : ' · RTM ' + T.rtm}</small></span>
+      <span class="pur">${fmt(T.purse)}<small>purse</small></span></button>`; }).join('');
+}
+function renderTeams() { const h = teamRows(); const c = $('#teamsCol'); if (c) c.innerHTML = '<h3 style="margin:2px 2px 0">Franchises</h3>' + h; if (UI.tab === 'teams') renderSide(); }
+function squadHTML(id) {
+  const T = G.teams[id], I = info(G, id);
+  const rows = [...T.squad].sort((a, b) => G.players[b.pid].ovr - G.players[a.pid].ovr).map(e => { const p = G.players[e.pid];
+    return prow(p, `<small>${e.how === 'RET' ? 'Retained' : e.how === 'RTM' ? 'RTM' : e.how === 'FILL' ? 'Filler' : 'Auction'}</small><b>${fmt(e.price)}</b>`); }).join('');
+  return `<div class="row">${crest(id, 38)}<b style="font-family:var(--f-disp);font-size:22px;text-transform:uppercase">${TM[id].name}</b></div>
+    <div class="stat"><span>Purse left</span><b>${fmt(T.purse)}</b></div><div class="stat"><span>Squad</span><b>${I.n} / 25 (min 19)</b></div>
+    <div class="stat"><span>Indian slots left</span><b>${I.indLeft}</b></div><div class="stat"><span>Overseas slots left</span><b>${I.osLeft} (${I.os}/8 used)</b></div>
+    ${G.mode === 'mini' ? '' : `<div class="stat"><span>RTM cards</span><b>${T.rtm}</b></div>`}
+    <div style="margin-top:8px">${rows || '<div class="empty">No players yet.</div>'}</div>`;
+}
+function setsPanel() {
+  return G.sets.map(s => {
+    const done = s.pids.filter(id => G.sold.some(x => x.pid === id) || G.unsold.includes(id)).length;
+    const cur = G.cur && s.pids.includes(G.cur.pid) && G.cur.phase !== 'done';
+    return `<details class="set" data-set="${s.idx}" ${UI.openSets.has(s.idx) || cur ? 'open' : ''}><summary>${esc(s.name)} <small>${done}/${s.pids.length}</small></summary><div>
+      ${s.pids.map(id => { const p = G.players[id], [st, cl] = statusOf(p);
+        return prow(p, `<small style="color:${cl === 'won' ? 'var(--ok)' : cl === 'lost' ? 'var(--mute)' : 'var(--text)'}">${cl === '' ? fmt(p.base) : esc(st)}</small><button class="btn mini ${G.wishlist[id] ? 'on' : ''}" data-act="wl" data-id="${id}">${G.wishlist[id] ? '★' : '☆'}</button>`, cl === 'cur' ? 'cur' : ''); }).join('')}</div></details>`;
+  }).join('');
+}
+let sideQueued = false;
+function renderSide() {
+  if (sideQueued) return; sideQueued = true;
+  requestAnimationFrame(() => {
+    sideQueued = false;
+    const b = $('#sideBody'); if (!b) return;
+    $$('#tabs button').forEach(x => x.setAttribute('aria-selected', x.dataset.v === UI.tab));
+    if (UI.tab === 'wish') setHTML(b, wishHTML(true));
+    else if (UI.tab === 'sets') setHTML(b, setsPanel());
+    else if (UI.tab === 'mine') setHTML(b, squadHTML(G.user));
+    else setHTML(b, teamRows());
+  });
+}
+function updateBid() {
+  const btn = $('#bidBtn'); if (!btn) return;
+  const c = G.cur, msg = $('#bidMsg');
+  if (!c || c.phase !== 'bidding') { btn.disabled = true; btn.textContent = 'Bid'; msg.textContent = ''; return; }
+  const p = G.players[c.pid], next = nextPrice(c, p), why = whyNot(G, G.user, p, next);
+  btn.textContent = (c.leader ? 'Bid ' : 'Open at ') + fmt(next);
+  const mine = c.leader === G.user;
+  btn.disabled = UI.paused || mine || !!why || UI.ff;
+  const w = G.wishlist[p.id];
+  msg.innerHTML = mine ? '<b style="color:var(--ok)">You hold the highest bid.</b>' : why ? esc(why) : `You can go up to ${fmt(maxAfford(G, G.user))}${w ? ' · your wishlist limit ' + fmt(w.max) : ''}. Press Space to bid.`;
+}
+function showLot(p) {
+  const c = G.cur, lead = c.leader ? TM[c.leader].c1 : '#2b3a82';
+  $('#photo').style.setProperty('--tc', lead); $('#photo').innerHTML = portrait(p, lead);
+  const st = pstats(p), set = G.sets.find(s => s.pids.includes(p.id));
+  $('#lotSet').innerHTML = set ? esc(set.name) : '';
+  $('#lotInfo').innerHTML = `Lot <b>${G.lotNo}</b>${G.accel ? '' : ' of ' + G.totalLots}`;
+  $('#hudSet').textContent = set ? set.name : ''; $('#hudLot').textContent = `Lot ${G.lotNo}${G.accel ? '' : ' / ' + G.totalLots}`;
+  $('#pName').textContent = p.name;
+  $('#pTags').innerHTML = tags(p) + (G.wishlist[p.id] ? '<span class="tag hot">★ On your wishlist</span>' : '') + (p.rtmTeam && G.mode !== 'mini' ? `<span class="tag">RTM: ${p.rtmTeam}</span>` : '');
+  $('#pFacts').innerHTML = `Base price <b>${fmt(p.base)}</b>${p.team25 && G.mode === 'real' ? ` · 2025 real result <b>${p.team25} ${fmt(p.price25)}</b>` : ''}`;
+  $('#pBars').innerHTML = [['Batting', st.bat], ['Bowling', st.bowl], ['Overall', st.ovr]].map(([l, v]) => `<div class="bar"><span>${l}</span><i><b style="width:${v}%"></b></i><span>${v}</span></div>`).join('') + '<small>Bars are estimated ratings.</small>' + realStats(p);
+  $('#stamp').hidden = true; $('#sayLine').textContent = '';
+  renderBoard(); renderTeams(); renderSide(); updateBid();
+}
+function renderBoard(bump) {
+  const c = G.cur; if (!c) return; const p = G.players[c.pid];
+  $('#priceLbl').textContent = c.leader ? 'Current bid' : 'Base price';
+  const pr = $('#price'); pr.textContent = fmt(c.leader ? c.price : p.base);
+  if (bump) { pr.classList.remove('bump'); void pr.offsetWidth; pr.classList.add('bump'); }
+  const lead = c.leader, ld = $('#leader');
+  ld.style.setProperty('--tc', lead ? TM[lead].c1 : '#3b4a8f');
+  ld.innerHTML = lead ? `${crest(lead, 52)}<small class="mute">Highest bidder</small><b>${TM[lead].name}</b>` : '<small class="mute">Highest bidder</small><b>No bids yet</b><small class="mute">Open the bidding at base price</small>';
+  $('#photo').style.setProperty('--tc', lead ? TM[lead].c1 : '#2b3a82');
+  $('#blog').innerHTML = [...c.hist].reverse().slice(0, 7).map(h => `<li>${crest(h.t, 24)}<span>${TM[h.t].name}${h.t === G.user ? ' (you)' : ''}</span><span>${fmt(h.price)}</span></li>`).join('');
+}
+function showStamp(text, subtext, color) {
+  const s = $('#stamp'); s.style.setProperty('--tc', color); s.innerHTML = `<div>${text}${subtext ? '<small>' + subtext + '</small>' : ''}</div>`; s.hidden = false;
+}
+
+/* ---------- engine hooks ---------- */
+const H = {
+  gap: { open: 1300, bid: 1000 },
+  wait(ms) {
+    return new Promise(res => {
+      let left = (UI.ff ? Math.min(ms, 12) : ms) * SPEED[UI.speed];
+      const iv = setInterval(() => { if (UI.paused) return; left -= 40; if (left <= 0 || UI.ff) { clearInterval(iv); res(); } }, UI.ff ? 5 : 40);
+    });
+  },
+  async setStart(s) {
+    if (UI.ff) return;
+    showStamp(esc(s.name), '', '#f4b73f'); await speak(s.name, 2500); await H.wait(900); $('#stamp').hidden = true;
+  },
+  async lotStart(p) {
+    if (UI.ff && G.wishlist[p.id]) { UI.ff = false; $('#ffBtn').textContent = 'Skip to wishlist'; toast(`Wishlist player up: ${p.name}`); }
+    showLot(p);
+    await speak(`Next up. ${p.name}. ${ROLE_NAME[p.role]}. Base price ${say(p.base)}.`, 4500);
+  },
+  bid(t, price) {
+    renderBoard(true); renderTeams(); updateBid(); $('#sayLine').textContent = '';
+    return speak(`${TM[t].name}. ${say(price)}.`, 2600);
+  },
+  async going(n) { $('#sayLine').textContent = n === 1 ? 'Going once…' : 'Going twice…'; await speak(`${say(G.cur.price)}. Going ${n === 1 ? 'once' : 'twice'}.`, 2600); },
+  async unsold(p) {
+    G.cur.phase = 'done'; showStamp('Unsold', esc(p.name), '#98a4cf'); updateBid(); await speak(`${p.name} goes unsold.`, 2500); await H.wait(900);
+    renderTeams(); renderSide(); $('#stamp').hidden = true;
+  },
+  async sold(t, p, price, rtm) {
+    G.cur.phase = 'done'; G.cur.leader = t; G.cur.price = price;
+    renderBoard(true); updateBid();
+    showStamp('Sold', `${esc(TM[t].name)} · ${fmt(price)}${rtm ? ' · RTM' : ''}`, TM[t].c1);
+    renderTeams(); renderSide();
+    await speak(`Sold! ${p.name} to ${TM[t].name} for ${say(price)}.`, 4200); await H.wait(1100);
+    $('#stamp').hidden = true;
+  },
+  async rtmAsk(p, w, pr) {
+    G.cur.phase = 'rtm'; updateBid();
+    const r = G.teams[G.user]; speak('Right to match is available for your franchise.');
+    const v = await ask(`<h2>Right to Match</h2><p><b>${esc(p.name)}</b> was going to <b>${esc(TM[w].name)}</b> at <b>${fmt(pr)}</b>. You hold the RTM rights for this player.</p>
+      <div class="stat"><span>RTM cards left</span><b>${r.rtm}</b></div><div class="stat"><span>Purse</span><b>${fmt(r.purse)}</b></div>
+      <div class="row"><button class="btn gold" data-ans="y">Use RTM at ${fmt(pr)}</button><button class="btn" data-ans="n">Let him go</button></div>`);
+    return v === 'y';
+  },
+  async rtmNote(r, p, pr) { toast(`${TM[r].name} use the Right to Match on ${p.name}`); await speak(`${TM[r].name} use the right to match.`, 3000); await H.wait(600); },
+  async rtmRaise(p, r, pr) {
+    const next = pr + inc(pr);
+    if (!canBid(G, G.user, p, next)) { toast('You cannot afford to raise the bid.'); return pr; }
+    let np = pr;
+    const draw = () => `<h2>${esc(TM[r].name)} have used RTM</h2><p>They will match <b>${fmt(pr)}</b> for ${esc(p.name)}. You may raise the price once. They then decide whether to match it.</p>
+      <div class="stepper"><button class="btn" data-ans="dn" ${np <= pr ? 'disabled' : ''}>−</button><div class="big">${fmt(np)}</div><button class="btn" data-ans="up" ${canBid(G, G.user, p, np + inc(np)) ? '' : 'disabled'}>+</button></div>
+      <div class="row"><button class="btn gold" data-ans="ok">${np > pr ? 'Raise to ' + fmt(np) : 'Hold at ' + fmt(pr)}</button></div>`;
+    for (;;) {
+      const v = await ask(draw());
+      if (v === 'up') np += inc(np); else if (v === 'dn') { let q = pr; while (q + inc(q) < np) q += inc(q); np = q; } else return np;
+    }
+  },
+  async rtmRaised(w, p, np) { renderBoard(true); toast(`${TM[w].name} raise to ${fmt(np)}`); await speak(`${TM[w].name} raise the bid to ${say(np)}.`, 3500); },
+  async rtmMatch(p, w, np) {
+    const v = await ask(`<h2>Match the raised bid?</h2><p>${esc(TM[w].name)} raised the price for <b>${esc(p.name)}</b> to <b>${fmt(np)}</b>. If you decline, your RTM card is kept.</p>
+      <div class="row"><button class="btn gold" data-ans="y">Match ${fmt(np)}</button><button class="btn" data-ans="n">Decline</button></div>`);
+    return v === 'y';
+  },
+  async end() { UI.started = false; go('done'); },
+};
+
+/* ---------- results ---------- */
+function renderDone() {
+  const ranks = TEAMS.map(t => ({ id: t.id, r: teamRating(G, t.id), I: info(G, t.id), spent: PURSE - G.teams[t.id].purse })).sort((a, b) => b.r - a.r);
+  const me = ranks.findIndex(x => x.id === G.user) + 1;
+  const top = [...G.sold].sort((a, b) => b.price - a.price).slice(0, 8);
+  SCREEN.innerHTML = `<section class="sec"><h1 style="font-size:clamp(34px,6vw,64px)">Auction complete</h1>
+    <p class="mute" style="margin:0">${TM[G.user].name} finish <b style="color:var(--gold)">#${me}</b> of 10 on best-XI rating.${G.filled.length ? ` ${G.filled.length} placeholder prospects were added at ₹30 L to bring short squads up to 19.` : ''}</p>
+    <div class="two"><div class="card scroll-x"><h3>Standings</h3><table class="tbl"><thead><tr><th>#</th><th>Team</th><th>Best XI</th><th>Squad</th><th>OS</th><th>Spent</th><th>Purse left</th></tr></thead><tbody>
+      ${ranks.map((x, i) => `<tr style="${x.id === G.user ? 'background:#2a2210' : ''}"><td>${i + 1}</td><td><span class="row">${crest(x.id, 22)} ${x.id}</span></td><td><b>${x.r.toFixed(1)}</b></td><td>${x.I.n}</td><td>${x.I.os}</td><td>${fmt(x.spent)}</td><td>${fmt(G.teams[x.id].purse)}</td></tr>`).join('')}</tbody></table></div>
+      <div class="card"><h3>Biggest buys</h3>${top.map(s => prow(G.players[s.pid], `${crest(s.team, 20)}<b>${fmt(s.price)}</b>`)).join('')}</div></div>
+    <h3>Squads</h3><div id="doneSquads">${TEAMS.map(t => `<details class="set" ${t.id === G.user ? 'open' : ''}><summary>${crest(t.id, 26)} ${t.name} <small>${fmt(G.teams[t.id].purse)} left</small></summary><div style="padding:8px">${squadHTML(t.id)}</div></details>`).join('')}</div>
+    <div class="cta"><button class="btn gold" data-act="again">Play again</button></div></section>`;
+}
+
+/* ---------- events ---------- */
+function rerenderPrepOrSide() { if (UI.screen === 'prep') updPrep(); else renderSide(); }
+document.addEventListener('click', e => {
+  const ans = e.target.closest('[data-ans]'); if (ans) { answer(ans.dataset.ans); return; }
+  if (e.target === MODAL && !UI.modalRes) { closeModal(); return; }
+  const el = e.target.closest('[data-act]'); if (!el || el.tagName === 'SELECT' || el.tagName === 'INPUT') return;
+  const a = el.dataset.act, id = +el.dataset.id;
+  switch (a) {
+    case 'mode': UI.mode = el.dataset.v; renderHome(); break;
+    case 'team': UI.team = el.dataset.v; renderHome(); break;
+    case 'start':
+      if (UI.mode === 'custom') { UI.custom = []; go('custom'); }
+      else { G = newGame(UI.mode, UI.team); UI.selRet = UI.mode === 'mini' ? [...G.rosters[UI.team]] : []; UI.started = false; go('retention'); }
+      break;
+    case 'home': go('home'); break;
+    case 'cpick': { const i = UI.custom.indexOf(id); if (i >= 0) UI.custom.splice(i, 1); else if (UI.custom.length < 25) UI.custom.push(id); else toast('Squad is full (25).'); updCustom(); break; }
+    case 'customdone': G = newGame('custom', UI.team, UI.custom); UI.selRet = []; UI.started = false; go('retention'); break;
+    case 'retpick': { const i = UI.selRet.indexOf(id); if (i >= 0) UI.selRet.splice(i, 1); else UI.selRet.push(id); updRet(); break; }
+    case 'retdone': finalizeRetention(G, UI.selRet); go('reveal'); break;
+    case 'toprep': go('prep'); break;
+    case 'wl': wlToggle(id); rerenderPrepOrSide(); if (UI.screen === 'auction') updateBid(); break;
+    case 'startauction': UI.paused = false; go('auction'); break;
+    case 'bid': { if (UI.paused) break; const r = userBid(G, H); if (!r.ok) toast(r.msg); break; }
+    case 'pause': UI.paused = !UI.paused; if (UI.paused && SYN) { try { SYN.cancel(); } catch (x) { /* ignore */ } } $('#pauseBtn').textContent = UI.paused ? 'Resume' : 'Pause'; $('#hud').classList.toggle('paused', UI.paused); $('#liveTag').textContent = UI.paused ? 'PAUSED' : 'LIVE'; $('#pmask').hidden = !UI.paused; updateBid(); break;
+    case 'ff': {
+      if (UI.ff) { UI.ff = false; el.textContent = 'Skip to wishlist'; updateBid(); break; }
+      const upcoming = G.sets.some(s => s.pids.some(pid => G.wishlist[pid] && !G.sold.some(x => x.pid === pid) && !G.unsold.includes(pid) && (!G.cur || pid !== G.cur.pid)));
+      if (!upcoming) { toast('No wishlist players left to wait for. Add some with the star first.'); break; }
+      UI.ff = true; el.textContent = 'Stop skipping'; toast('Skipping ahead to your next wishlist player…'); updateBid(); break;
+    }
+    case 'tab': UI.tab = el.dataset.v; renderSide(); break;
+    case 'team-view': openModal(squadHTML(el.dataset.t) + '<div class="row"><button class="btn" data-ans="x">Close</button></div>', true); UI.modalRes = null; break;
+    case 'quit': ask('<h2>Leave the auction?</h2><p>This ends the current auction and your progress is lost.</p><div class="row"><button class="btn danger" data-ans="y">Leave</button><button class="btn" data-ans="n">Keep playing</button></div>').then(v => { if (v === 'y') location.reload(); }); break;
+    case 'again': location.reload(); break;
+  }
+});
+document.addEventListener('change', e => {
+  const el = e.target.closest('[data-act]'), t = e.target;
+  if (t.id === 'cq' || t.id === 'crole') { UI.cq = $('#cq').value; UI.crole = $('#crole').value; updCustom(); return; }
+  if (t.id === 'pq' || t.id === 'prole' || t.id === 'pwish') { UI.q = $('#pq').value; UI.role = $('#prole').value; UI.onlyWish = $('#pwish').checked; updPrep(); return; }
+  if (t.id === 'autobid') { G.auto = t.checked; return; }
+  if (!el) return;
+  const a = el.dataset.act;
+  if (a === 'wlmax') {
+    const p = G.players[+el.dataset.id]; let v = Math.round(parseFloat(el.value) * 100 / 5) * 5;
+    if (!(v >= p.base)) v = p.base; G.wishlist[p.id].max = v; el.value = v / 100;
+    if (UI.screen === 'prep') $('#wishbox').innerHTML = wishHTML(false); else renderSide();
+  } else if (a === 'speed') { UI.speed = el.value; try { SYN && SYN.cancel(); } catch (x) { /* ignore */ } }
+  else if (a === 'voice') { UI.voice = el.checked; if (!UI.voice && SYN) { try { SYN.cancel(); } catch (x) { /* ignore */ } } }
+  else if (a === 'voicesel') { UI.voiceName = el.value; speak('Welcome to the IPL auction.'); }
+});
+document.addEventListener('input', e => {
+  const t = e.target;
+  if (t.id === 'cq') { UI.cq = t.value; updCustom(); }
+  else if (t.id === 'pq') { UI.q = t.value; updPrep(); }
+});
+document.addEventListener('keydown', e => {
+  if (e.code === 'Space' && UI.screen === 'auction' && MODAL.hidden && !/INPUT|SELECT|TEXTAREA|BUTTON/.test(document.activeElement.tagName)) { e.preventDefault(); const b = $('#bidBtn'); if (b && !b.disabled) b.click(); }
+  if (e.key === 'Escape' && !UI.modalRes && !MODAL.hidden) closeModal();
+});
+document.addEventListener('toggle', e => {
+  const d = e.target; if (d.tagName !== 'DETAILS' || !d.dataset.set) return;
+  const i = +d.dataset.set; if (d.open) UI.openSets.add(i); else UI.openSets.delete(i);
+}, true);
+
+go('home');
+
+</script>
+</body></html>
