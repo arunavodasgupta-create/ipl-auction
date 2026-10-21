@@ -202,6 +202,15 @@ table.tbl th { font-family: var(--f-num); letter-spacing: .08em; text-transform:
 .rs span { background: #0d1532; border: 1px solid var(--line); border-radius: 8px; padding: 3px 9px; font-family: var(--f-num); font-weight: 600; font-size: 14px; color: var(--mute); }
 .rs b { color: var(--gold); margin-left: 4px; }
 
+.camcard { display: grid; gap: 8px; }
+.camwrap { position: relative; aspect-ratio: 4 / 3; border-radius: 10px; overflow: hidden; background: #000; border: 2px solid var(--line); }
+.camwrap video, .camwrap canvas { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
+.camwrap.raised { border-color: var(--ok); box-shadow: 0 0 0 3px #34d39955; }
+.camwrap.cal { cursor: crosshair; border-color: var(--gold); }
+.camstat { font-family: var(--f-num); font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--gold); min-height: 22px; }
+.camrow { display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: 8px; align-items: center; font-size: 13px; color: var(--mute); }
+.swatch { display: inline-block; width: 26px; height: 26px; border-radius: 6px; border: 1px solid var(--line); background: #444; }
+
 img{max-width:100%}
 </style></head><body>
 <div class="shell" id="app">
@@ -804,6 +813,194 @@ function teamRating(G, t) {
 }
 
 
+/* ===== CAMERA BIDDING ===== */
+/* Part 1: pure detection helpers (no DOM, unit-tested without a camera). */
+const HAND_FINGERS = [[8, 6], [12, 10], [16, 14], [20, 18]];   // [tip, pip] landmark ids for index..pinky
+const PADDLE_MIN = 0.02;                                       // share of the frame the paddle must cover
+const hdist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+
+/* lm = 21 MediaPipe hand landmarks (x, y in 0..1, y grows downward). line = raise line (0..1). */
+function handState(lm, line) {
+  if (!lm || lm.length < 21) return { open: false, raised: false, y: 1 };
+  let ext = 0;
+  for (const [t, p] of HAND_FINGERS) if (hdist(lm[0], lm[t]) > 1.1 * hdist(lm[0], lm[p])) ext++;
+  const cy = [0, 5, 9, 13, 17].reduce((s, i) => s + lm[i].y, 0) / 5;
+  const open = ext >= 3;
+  return { open, raised: open && cy < line, y: cy };
+}
+
+/* px = RGBA bytes. Counts pixels close to the target colour above the raise line.
+   Returns that count as a share of the whole frame. Optionally paints a green mask into outMask (RGBA). */
+function paddleScan(px, w, h, target, tol, line, outMask) {
+  const t2 = tol * tol, maxY = Math.floor(line * h);
+  let n = 0;
+  for (let y = 0; y < maxY; y++) for (let x = 0; x < w; x++) {
+    const i = (y * w + x) * 4, dr = px[i] - target[0], dg = px[i + 1] - target[1], db = px[i + 2] - target[2];
+    const hit = dr * dr + dg * dg + db * db <= t2;
+    if (hit) n++;
+    if (outMask) { outMask[i] = 52; outMask[i + 1] = 211; outMask[i + 2] = 153; outMask[i + 3] = hit ? 170 : 0; }
+  }
+  return n / (w * h);
+}
+
+/* Turns a noisy raised/not-raised signal into one bid per raise:
+   must stay raised for `hold` ms, then fires once; the hand must stay down for `rearm` ms before it can fire again. */
+class Trigger {
+  constructor(hold = 350, rearm = 600, gap = 1000) { this.hold = hold; this.rearm = rearm; this.gap = gap; this.reset(); }
+  reset() { this.armed = true; this.since = null; this.low = null; this.lastFire = -1e9; }
+  update(raised, now) {
+    if (raised) {
+      this.low = null;
+      if (!this.armed) return false;
+      if (this.since == null) this.since = now;
+      if (now - this.since >= this.hold && now - this.lastFire >= this.gap) { this.armed = false; this.since = null; this.lastFire = now; return true; }
+      return false;
+    }
+    this.since = null;
+    if (!this.armed) {
+      if (this.low == null) this.low = now;
+      if (now - this.low >= this.rearm) { this.armed = true; this.low = null; }
+    }
+    return false;
+  }
+}
+
+/* Part 2: camera, preview panel and bid wiring. */
+const MP_BASE = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14';
+const MP_MODEL = 'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task';
+const CAM = { on: false, mode: 'hand', stream: null, video: null, pctx: null, octx: null, W: 160, H: 120, lmk: null, loading: null,
+  line: 0.5, tol: 60, target: null, calibrating: false, trig: new Trigger(), raf: 0, last: 0, raised: false };
+
+function camStatus(t) { const el = document.querySelector('#camStatus'); if (el && el.textContent !== t) el.textContent = t; }
+
+async function loadHands() {
+  if (CAM.lmk) return CAM.lmk;
+  if (!CAM.loading) {
+    CAM.loading = (async () => {
+      const mod = await import(MP_BASE + '/vision_bundle.mjs');
+      const files = await mod.FilesetResolver.forVisionTasks(MP_BASE + '/wasm');
+      const opts = d => ({ baseOptions: { modelAssetPath: MP_MODEL, delegate: d }, runningMode: 'VIDEO', numHands: 2 });
+      try { CAM.lmk = await mod.HandLandmarker.createFromOptions(files, opts('GPU')); }
+      catch (e) { CAM.lmk = await mod.HandLandmarker.createFromOptions(files, opts('CPU')); }
+      return CAM.lmk;
+    })().catch(e => { CAM.loading = null; throw e; });
+  }
+  return CAM.loading;
+}
+
+function camMode(m) {
+  CAM.mode = m;
+  document.querySelector('#camMode').value = m;
+  document.querySelector('#camPad').hidden = m !== 'paddle';
+  CAM.trig.reset();
+  if (m === 'hand' && !CAM.lmk) {
+    camStatus('Loading hand tracking…');
+    loadHands().catch(err => {
+      console.error(err);
+      toast('Hand tracking could not load (needs internet access to its library). Switched to paddle mode.', 6000);
+      camMode('paddle');
+    });
+  }
+}
+
+async function camStart() {
+  if (CAM.on) return;
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    toast('This page cannot use the camera here. Open the https:// site in Chrome or Edge.', 6000); return;
+  }
+  const card = document.querySelector('#camCard'); card.hidden = false; camStatus('Asking for camera permission…');
+  try {
+    CAM.stream = await navigator.mediaDevices.getUserMedia({ video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: 'user' }, audio: false });
+  } catch (e) {
+    card.hidden = true;
+    toast(e && e.name === 'NotAllowedError' ? 'Camera permission was blocked. Allow the camera in the address bar and try again.' : 'No camera found, or another app is using it.', 6000);
+    return;
+  }
+  const v = document.querySelector('#camVideo'); v.srcObject = CAM.stream;
+  try { await v.play(); } catch (e) { /* autoplay is allowed for muted video */ }
+  CAM.video = v;
+  const vw = v.videoWidth || 640, vh = v.videoHeight || 480;
+  CAM.W = 160; CAM.H = Math.max(60, Math.round(160 * vh / vw));
+  const proc = document.createElement('canvas'); proc.width = CAM.W; proc.height = CAM.H;
+  CAM.pctx = proc.getContext('2d', { willReadFrequently: true });
+  const ov = document.querySelector('#camOv'); ov.width = CAM.W; ov.height = CAM.H; CAM.octx = ov.getContext('2d');
+  document.querySelector('#camWrap').style.aspectRatio = vw + ' / ' + vh;
+  CAM.on = true; CAM.trig.reset();
+  const b = document.querySelector('#camBtn'); b.classList.add('on'); b.textContent = 'Camera bidding: on';
+  camMode(CAM.mode);
+  CAM.raf = requestAnimationFrame(camTick);
+}
+
+function camStop() {
+  if (!CAM.on && !CAM.stream) return;
+  CAM.on = false; cancelAnimationFrame(CAM.raf);
+  if (CAM.stream) CAM.stream.getTracks().forEach(t => t.stop());
+  CAM.stream = null;
+  const card = document.querySelector('#camCard'), b = document.querySelector('#camBtn');
+  if (card) card.hidden = true;
+  if (b) { b.classList.remove('on'); b.textContent = 'Camera bidding'; }
+}
+
+function camBid() {
+  if (!G || UI.screen !== 'auction' || UI.paused || !G.cur || G.cur.phase !== 'bidding') return;
+  const r = userBid(G, H);
+  if (!r.ok) toast(r.msg);
+}
+
+function camTick(now) {
+  if (!CAM.on) return;
+  CAM.raf = requestAnimationFrame(camTick);
+  if (now - CAM.last < 66) return;
+  CAM.last = now;
+  const v = CAM.video; if (!v || v.readyState < 2) return;
+  const W = CAM.W, H = CAM.H, o = CAM.octx;
+  o.clearRect(0, 0, W, H);
+  let raised = false, msg = '';
+  if (CAM.mode === 'hand') {
+    if (!CAM.lmk) msg = 'Loading hand tracking…';
+    else {
+      let res = null;
+      try { res = CAM.lmk.detectForVideo(v, now); } catch (e) { res = null; }
+      const hands = (res && res.landmarks) || [];
+      o.fillStyle = '#f4b73f';
+      for (const lm of hands) {
+        if (handState(lm, CAM.line).raised) raised = true;
+        for (const p of lm) { o.beginPath(); o.arc(p.x * W, p.y * H, 1.8, 0, 6.3); o.fill(); }
+      }
+      msg = !hands.length ? 'No hand in view' : raised ? 'Hand raised' : 'Raise an open hand above the line';
+    }
+  } else if (!CAM.target) {
+    msg = 'Press Set paddle colour, then click your paddle';
+  } else {
+    CAM.pctx.drawImage(v, 0, 0, W, H);
+    const d = CAM.pctx.getImageData(0, 0, W, H), mask = o.createImageData(W, H);
+    raised = paddleScan(d.data, W, H, CAM.target, CAM.tol, CAM.line, mask.data) >= PADDLE_MIN;
+    o.putImageData(mask, 0, 0);
+    msg = raised ? 'Paddle raised' : 'Raise your paddle above the line';
+  }
+  o.strokeStyle = '#f4b73f'; o.lineWidth = 1; o.setLineDash([4, 3]);
+  o.beginPath(); o.moveTo(0, CAM.line * H); o.lineTo(W, CAM.line * H); o.stroke(); o.setLineDash([]);
+  CAM.raised = raised;
+  document.querySelector('#camWrap').classList.toggle('raised', raised);
+  camStatus(msg);
+  if (CAM.trig.update(raised, now)) camBid();
+}
+
+function camPick(ev) {
+  if (!CAM.calibrating || !CAM.on) return;
+  const wrap = document.querySelector('#camWrap'), r = wrap.getBoundingClientRect();
+  const px = Math.round((1 - (ev.clientX - r.left) / r.width) * CAM.W), py = Math.round((ev.clientY - r.top) / r.height * CAM.H);
+  CAM.pctx.drawImage(CAM.video, 0, 0, CAM.W, CAM.H);
+  const x0 = Math.max(0, Math.min(CAM.W - 1, px - 3)), y0 = Math.max(0, Math.min(CAM.H - 1, py - 3));
+  const w = Math.min(7, CAM.W - x0), h = Math.min(7, CAM.H - y0), d = CAM.pctx.getImageData(x0, y0, w, h).data;
+  let R = 0, Gr = 0, B = 0; const n = w * h;
+  for (let i = 0; i < d.length; i += 4) { R += d[i]; Gr += d[i + 1]; B += d[i + 2]; }
+  CAM.target = [R / n, Gr / n, B / n]; CAM.calibrating = false;
+  wrap.classList.remove('cal');
+  document.querySelector('#camSwatch').style.background = 'rgb(' + CAM.target.map(Math.round).join(',') + ')';
+  toast('Paddle colour saved. Green on the preview shows what is detected.');
+}
+
 /* ===== UI ===== */
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -1026,6 +1223,7 @@ function buildAuction() {
     <label><input type="checkbox" id="voiceChk" data-act="voice" ${UI.voice ? 'checked' : ''}> Voice</label>
     <select id="voiceSel" data-act="voicesel" aria-label="Voice"></select>
     <button class="btn" data-act="ff" id="ffBtn" title="Fast-forward until a wishlist player comes up">Skip to wishlist</button>
+    <button class="btn" id="camBtn" data-act="cam" title="Bid by raising your hand or a paddle in front of the webcam">Camera bidding</button>
     <button class="btn danger" data-act="quit">Quit</button></div>
   <div class="arena">
     <aside class="col teams-col" id="teamsCol"></aside>
@@ -1038,7 +1236,18 @@ function buildAuction() {
       <ol class="blog" id="blog"></ol>
       <div class="stamp" id="stamp" hidden></div><div class="pausedmask" id="pmask" hidden>PAUSED</div>
     </main>
-    <aside class="col"><div class="card"><div class="tabs" role="tablist" id="tabs">
+    <aside class="col"><div class="card camcard" id="camCard" hidden>
+      <div class="row"><b class="grow" style="font-family:var(--f-disp);font-size:18px;text-transform:uppercase">Camera bidding</b><button class="btn mini" data-act="camoff">Turn off</button></div>
+      <div class="camwrap" id="camWrap"><video id="camVideo" playsinline muted></video><canvas id="camOv" width="160" height="120"></canvas></div>
+      <div class="camstat" id="camStatus" aria-live="polite">Starting camera\u2026</div>
+      <label class="camrow">Mode <select id="camMode" data-act="cammode"><option value="hand">Raise open hand</option><option value="paddle">Coloured paddle</option></select></label>
+      <label class="camrow">Raise line <input type="range" id="camLine" min="20" max="80" value="50" data-act="camline"></label>
+      <div id="camPad" hidden>
+        <label class="camrow">Colour match <input type="range" id="camTol" min="25" max="120" value="60" data-act="camtol"></label>
+        <div class="row" style="margin-top:6px"><button class="btn mini" data-act="camcal">Set paddle colour</button><span class="swatch" id="camSwatch"></span></div>
+      </div>
+      <small>Hold for a moment to bid. Lower your hand before the next bid. Video stays in your browser and is never uploaded.</small>
+    </div><div class="card"><div class="tabs" role="tablist" id="tabs">
       <button role="tab" data-act="tab" data-v="wish">Wishlist</button><button role="tab" data-act="tab" data-v="sets">Sets</button><button role="tab" data-act="tab" data-v="mine">My squad</button><button role="tab" class="only-m" data-act="tab" data-v="teams">Teams</button></div>
       <div class="sidebody" id="sideBody"></div></div></aside>
   </div>`;
@@ -1193,6 +1402,7 @@ const H = {
 
 /* ---------- results ---------- */
 function renderDone() {
+  camStop();
   const ranks = TEAMS.map(t => ({ id: t.id, r: teamRating(G, t.id), I: info(G, t.id), spent: PURSE - G.teams[t.id].purse })).sort((a, b) => b.r - a.r);
   const me = ranks.findIndex(x => x.id === G.user) + 1;
   const top = [...G.sold].sort((a, b) => b.price - a.price).slice(0, 8);
@@ -1210,6 +1420,7 @@ function rerenderPrepOrSide() { if (UI.screen === 'prep') updPrep(); else render
 document.addEventListener('click', e => {
   const ans = e.target.closest('[data-ans]'); if (ans) { answer(ans.dataset.ans); return; }
   if (e.target === MODAL && !UI.modalRes) { closeModal(); return; }
+  if (e.target.closest('#camWrap')) { camPick(e); return; }
   const el = e.target.closest('[data-act]'); if (!el || el.tagName === 'SELECT' || el.tagName === 'INPUT') return;
   const a = el.dataset.act, id = +el.dataset.id;
   switch (a) {
@@ -1239,6 +1450,9 @@ document.addEventListener('click', e => {
     case 'team-view': openModal(squadHTML(el.dataset.t) + '<div class="row"><button class="btn" data-ans="x">Close</button></div>', true); UI.modalRes = null; break;
     case 'quit': ask('<h2>Leave the auction?</h2><p>This ends the current auction and your progress is lost.</p><div class="row"><button class="btn danger" data-ans="y">Leave</button><button class="btn" data-ans="n">Keep playing</button></div>').then(v => { if (v === 'y') location.reload(); }); break;
     case 'again': location.reload(); break;
+    case 'cam': if (CAM.on) camStop(); else camStart(); break;
+    case 'camoff': camStop(); break;
+    case 'camcal': if (!CAM.on) break; CAM.calibrating = true; $('#camWrap').classList.add('cal'); toast('Hold up your paddle, then click it in the preview.'); break;
   }
 });
 document.addEventListener('change', e => {
@@ -1254,12 +1468,15 @@ document.addEventListener('change', e => {
     if (UI.screen === 'prep') $('#wishbox').innerHTML = wishHTML(false); else renderSide();
   } else if (a === 'speed') { UI.speed = el.value; try { SYN && SYN.cancel(); } catch (x) { /* ignore */ } }
   else if (a === 'voice') { UI.voice = el.checked; if (!UI.voice && SYN) { try { SYN.cancel(); } catch (x) { /* ignore */ } } }
+  else if (a === 'cammode') camMode(el.value);
   else if (a === 'voicesel') { UI.voiceName = el.value; speak('Welcome to the IPL auction.'); }
 });
 document.addEventListener('input', e => {
   const t = e.target;
   if (t.id === 'cq') { UI.cq = t.value; updCustom(); }
   else if (t.id === 'pq') { UI.q = t.value; updPrep(); }
+  else if (t.dataset && t.dataset.act === 'camline') CAM.line = t.value / 100;
+  else if (t.dataset && t.dataset.act === 'camtol') CAM.tol = +t.value;
 });
 document.addEventListener('keydown', e => {
   if (e.code === 'Space' && UI.screen === 'auction' && MODAL.hidden && !/INPUT|SELECT|TEXTAREA|BUTTON/.test(document.activeElement.tagName)) { e.preventDefault(); const b = $('#bidBtn'); if (b && !b.disabled) b.click(); }
